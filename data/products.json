@@ -1,0 +1,71 @@
+[
+  {
+    "slug": "fortiedge-x5",
+    "name": "2PN FortiEdge X5",
+    "category": "Bezpečnosť siete",
+    "tagline": "Edge firewall s AI detekciou hrozieb",
+    "price": 3490,
+    "currency": "EUR",
+    "image": "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80",
+    "badge": "Novinka",
+    "specs": ["1,5 Tbps throughput", "Zero-trust politika", "SD-WAN ready"],
+    "description": "Prémiový firewall pripravený chrániť dátové centrá aj pobočky s nonstop monitoringom a lokálnou podporou do 2 hodín."
+  },
+  {
+    "slug": "switchwave-s4",
+    "name": "2PN SwitchWave S4",
+    "category": "Sieťové prvky",
+    "tagline": "Cloud-managed switch s PoE++",
+    "price": 1890,
+    "currency": "EUR",
+    "image": "https://images.unsplash.com/photo-1517430816045-df4b7de11d1d?auto=format&fit=crop&w=800&q=80",
+    "badge": "Top rated",
+    "specs": ["48×1G/10G porty", "Stacking 4 zariadení", "SNMPv3 a NetFlow"],
+    "description": "Plug & play switch, ktorý zvládne vysokú záťaž a dá sa spravovať cez prehľadný cloud portál."
+  },
+  {
+    "slug": "skywifi-6e",
+    "name": "SkyWiFi 6E Pro",
+    "category": "Wireless",
+    "tagline": "Wi-Fi 6E mesh so zabezpečením WPA3",
+    "price": 890,
+    "currency": "EUR",
+    "image": "https://images.unsplash.com/photo-1520607162513-77705c0f0d4a?auto=format&fit=crop&w=800&q=80",
+    "specs": ["Tri-band 6 GHz", "IoT segmentácia", "App onboarding"],
+    "description": "Inteligentné riešenie pre kancelárie a retail, ktoré zabezpečí stabilné pripojenie aj pri vysokej návštevnosti."
+  },
+  {
+    "slug": "nebula-server",
+    "name": "Nebula Edge Server",
+    "category": "Servery",
+    "tagline": "Hybridný server pre AI workloady",
+    "price": 5590,
+    "currency": "EUR",
+    "image": "https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80",
+    "specs": ["2×AMD EPYC", "NVIDIA L40", "Redundantné PSU"],
+    "description": "Výkonná edge platforma pripravená na virtualizáciu, AI inferenciu aj kontajnerové workloady."
+  },
+  {
+    "slug": "aurora-backup",
+    "name": "Aurora Backup Vault",
+    "category": "Zálohovanie",
+    "tagline": "Bezpečné zálohy s immutable režimom",
+    "price": 1290,
+    "currency": "EUR",
+    "image": "https://images.unsplash.com/photo-1520607162513-77705c0f0d4a?auto=format&fit=crop&w=800&q=80",
+    "specs": ["Air-gap ochrana", "Instant recovery", "Azure/Google konektory"],
+    "description": "Zabezpečí kritické dáta proti ransomvérom a prinesie rýchlu obnovu vďaka delta-technológii."
+  },
+  {
+    "slug": "pulse-monitoring",
+    "name": "Pulse Monitoring 24/7",
+    "category": "Služby",
+    "tagline": "Proaktívny dohľad infraštruktúry",
+    "price": 560,
+    "currency": "EUR",
+    "billingPeriod": "mesačne",
+    "image": "https://images.unsplash.com/photo-1520607162513-77705c0f0d4a?auto=format&fit=crop&w=800&q=80",
+    "specs": ["NOC tím nonstop", "SLA 99.95 %", "Mesačné reporty"],
+    "description": "Manažovaná služba, ktorá stráži IT portfólio, upozorní na incident a navrhne riešenie skôr, než vznikne výpadok."
+  }
+]

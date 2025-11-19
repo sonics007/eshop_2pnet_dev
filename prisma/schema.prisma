@@ -1,0 +1,168 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Category {
+  id            Int           @id @default(autoincrement())
+  name          String        @unique
+  subcategories SubCategory[]
+  products      Product[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+}
+
+model SubCategory {
+  id         Int       @id @default(autoincrement())
+  name       String
+  category   Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  categoryId Int
+  products   Product[]
+}
+
+model Product {
+  id            Int          @id @default(autoincrement())
+  slug          String       @unique
+  name          String
+  tagline       String?
+  description   String?
+  price         Float
+  currency      String       @default("EUR")
+  badge         String?
+  billingPeriod String?
+  stock         Int          @default(0)
+  discount      Float?       @default(0)
+  promotion     String?
+  image         String?
+  gallery       String?
+  specs         String?
+  translations  String?
+  active        Boolean      @default(true)
+  category      Category?    @relation(fields: [categoryId], references: [id])
+  categoryId    Int?
+  subCategory   SubCategory? @relation(fields: [subCategoryId], references: [id])
+  subCategoryId Int?
+  createdAt     DateTime     @default(now())
+  updatedAt     DateTime     @updatedAt
+  orderItems    OrderItem[]
+}
+
+model User {
+  id               Int       @id @default(autoincrement())
+  email            String    @unique
+  passwordHash     String
+  companyName      String
+  ico              String?
+  dic              String?
+  vatId            String?
+  role             String    @default("user")
+  twoFactorEnabled Boolean   @default(false)
+  createdAt        DateTime  @default(now())
+  orders           Order[]
+  invoices         Invoice[]
+}
+
+model Order {
+  id            Int            @id @default(autoincrement())
+  externalId    String         @unique
+  customerName  String
+  companyId     String?
+  email         String
+  status        String         @default("PRIJATA")
+  total         Float
+  paymentMethod String
+  invoiceNumber String?
+  assignedTo    String?
+  createdAt     DateTime       @default(now())
+  updatedAt     DateTime       @updatedAt
+  user          User?          @relation(fields: [userId], references: [id])
+  userId        Int?
+  items         OrderItem[]
+  history       OrderHistory[]
+  invoice       Invoice?
+}
+
+model OrderItem {
+  id        Int      @id @default(autoincrement())
+  name      String
+  quantity  Int
+  price     Float
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId   Int
+  product   Product? @relation(fields: [productId], references: [id])
+  productId Int?
+}
+
+model OrderHistory {
+  id        Int      @id @default(autoincrement())
+  status    String
+  note      String?
+  timestamp DateTime @default(now())
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  orderId   Int
+}
+
+model Invoice {
+  id              Int      @id @default(autoincrement())
+  invoiceNumber   String   @unique
+  variableSymbol  String
+  supplierName    String
+  supplierIco     String
+  supplierDic     String
+  supplierVatId   String?
+  supplierAddress String
+  customerName    String
+  customerIco     String?
+  customerDic     String?
+  customerVatId   String?
+  customerAddress String?
+  issueDate       DateTime
+  dueDate         DateTime
+  supplyDate      DateTime
+  basePrice       Float
+  vatValue        Float
+  totalPrice      Float
+  currency        String   @default("EUR")
+  order           Order?   @relation(fields: [orderId], references: [id])
+  orderId         Int?     @unique
+  user            User?    @relation(fields: [userId], references: [id])
+  userId          Int?
+  createdAt       DateTime @default(now())
+  templateVersion String   @default("default")
+}
+
+model ChatSession {
+  id            Int           @id @default(autoincrement())
+  sessionKey    String        @unique
+  visitorName   String?
+  visitorEmail  String?
+  visitorPhone  String?
+  status        String        @default("open")
+  lastMessageAt DateTime      @default(now())
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  messages      ChatMessage[]
+}
+
+model ChatMessage {
+  id                Int         @id @default(autoincrement())
+  session           ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sessionId         Int
+  direction         String
+  content           String
+  telegramMessageId String?
+  telegramUpdateId  String?
+  createdAt         DateTime    @default(now())
+}
+
+model Config {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique
+  value     String
+  updatedAt DateTime @updatedAt
+}
+

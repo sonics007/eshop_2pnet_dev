@@ -1,0 +1,23 @@
+﻿{
+  "supplier": {
+    "name": "2Pnet s.r.o.",
+    "address": "Štefánikova 802, 293 01 Mladá Boleslav",
+    "ico": "03599861",
+    "dic": "CZ03599861",
+    "vatId": "CZ03599861",
+    "bankAccount": "2101234567/2010",
+    "iban": "CZ29 2010 0000 0021 0123 4567",
+    "swift": "FIOBCZPPXXX"
+  },
+  "defaults": {
+    "currency": "CZK",
+    "vatRate": 0.21,
+    "dueDays": 14,
+    "supplyDaysOffset": 0
+  },
+  "phrases": {
+    "footerNote": "Děkujeme za spolupráci. V případě dotazů kontaktujte billing@2pnet.cz.",
+    "legalNote": "Dodavatel je plátcem DPH. Faktura byla vystavena v souladu s §26 zákona o DPH.",
+    "paymentInstructions": "Uhrazujte prosím bankovním převodem na účet uvedený výše. Variabilní symbol = číslo faktury."
+  }
+}

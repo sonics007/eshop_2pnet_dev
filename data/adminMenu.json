@@ -1,0 +1,49 @@
+[
+  {
+    "id": "admin-visual",
+    "label": "Vizuál & pozadie",
+    "description": "Nastavenie hero bannerov",
+    "children": []
+  },
+  {
+    "id": "admin-links",
+    "label": "Linky & odkazy",
+    "description": "Správa odkazov loga a päty",
+    "children": []
+  },
+  {
+    "id": "admin-menu",
+    "label": "Menu & podmenu",
+    "description": "Konfigurácia admin navigácie",
+    "children": [
+      {
+        "id": "admin-menu-visual",
+        "label": "Administrácia stránky",
+        "children": [
+          {
+            "id": "admin-menu-visual-base",
+            "label": "Vizuál & pozadie"
+          },
+          {
+            "id": "admin-menu-links-base",
+            "label": "Linky & odkazy"
+          }
+        ]
+      },
+      {
+        "id": "admin-menu-users",
+        "label": "Správa používateľov",
+        "children": [
+          {
+            "id": "admin-menu-customers",
+            "label": "Zákazníci"
+          },
+          {
+            "id": "admin-menu-admins",
+            "label": "Administrátori"
+          }
+        ]
+      }
+    ]
+  }
+]
