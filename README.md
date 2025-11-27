@@ -61,9 +61,12 @@ Aplikácia: http://localhost:3000
 ## 📚 Dokumentácia
 
 - [CLAUDE.md](CLAUDE.md) - Projektová dokumentácia
-- [STRUCTURE.md](STRUCTURE.md) - Štruktúra projektu  
+- [STRUCTURE.md](STRUCTURE.md) - Štruktúra projektu
+- [CHANGELOG.md](CHANGELOG.md) - História zmien
 - [instalacia/README.md](instalacia/README.md) - Inštalačný návod
 - [instalacia/INSTALL-FROM-GITHUB.md](instalacia/INSTALL-FROM-GITHUB.md) - Inštalácia z GitHubu
+- [instalacia/TROUBLESHOOTING.md](instalacia/TROUBLESHOOTING.md) - Riešenie problémov
+- [instalacia/VERSIONING.md](instalacia/VERSIONING.md) - Verzionovanie projektu
 
 ## 🛠️ Tech Stack
 
