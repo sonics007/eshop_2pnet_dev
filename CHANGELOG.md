@@ -19,6 +19,10 @@ a tento projekt dodržiava [Semantic Versioning](https://semver.org/spec/v2.0.0.
 - 📝 Používateľsky prívetivejší inštalačný proces
 - 📝 Automatické nastavenie databázových oprávnení (chmod 666 dev.db, chmod 777 prisma/)
 - 🚀 **Server sa automaticky spúšťa po inštalácii** (predtým voliteľné)
+- ⚡ **Plne neinteraktívny inštalačný proces**
+  - Admin používateľ sa vytvorí automaticky s defaultnými hodnotami (admin@eshop.local / Admin123!)
+  - Production build, systemd, firewall a nginx sa automaticky preskočia (dev setup)
+  - Žiadne čakanie na vstup od používateľa - iba automatizácia
 
 ### Opravené
 - 🐛 Chyba pri vytváraní admin používateľa (chýbali parametre)
