@@ -4,7 +4,12 @@
 # ============================================================================
 # Spustite tento príkaz na Debian 12 serveri:
 #
-# curl -sSL https://raw.githubusercontent.com/sonics007/eshop_2pnet_dev/main/instalacia/quick-install.sh | bash
+# bash <(curl -sSL https://raw.githubusercontent.com/sonics007/eshop_2pnet_dev/main/instalacia/quick-install.sh)
+#
+# Alebo:
+#   git clone https://github.com/sonics007/eshop_2pnet_dev.git
+#   cd eshop_2pnet_dev/instalacia
+#   ./install.sh
 #
 # ============================================================================
 
