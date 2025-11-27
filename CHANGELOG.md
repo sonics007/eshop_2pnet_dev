@@ -5,6 +5,22 @@ Všetky významné zmeny v tomto projekte budú zdokumentované v tomto súbore.
 Formát je založený na [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 a tento projekt dodržiava [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.0.3] - 2025-11-27
+
+### Pridané
+- ✅ **Interaktívne vytvorenie admin používateľa**
+  - Skript sa pýta na email, heslo a meno
+  - Defaultné hodnoty pre rýchlu inštaláciu
+  - Zobrazenie prihlasovacích údajov po vytvorení
+  - Upozornenie na zmenu hesla
+
+### Zmenené
+- 📝 Vylepšená funkcia `create_admin_user()` v install.sh
+- 📝 Používateľsky prívetivejší inštalačný proces
+
+### Opravené
+- 🐛 Chyba pri vytváraní admin používateľa (chýbali parametre)
+
 ## [0.0.2] - 2025-11-27
 
 ### Pridané

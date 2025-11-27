@@ -178,11 +178,49 @@ create_admin_user() {
 
     cd "$PROJECT_DIR"
 
-    if [ -f "scripts/createAdmin.js" ]; then
-        node scripts/createAdmin.js
-        log_success "Admin používateľ vytvorený"
-    else
+    if [ ! -f "scripts/createAdmin.js" ]; then
         log_warning "Script createAdmin.js nenájdený, preskakujem..."
+        return
+    fi
+
+    # Defaultné hodnoty
+    DEFAULT_EMAIL="admin@eshop.local"
+    DEFAULT_PASSWORD="Admin123!"
+    DEFAULT_NAME="Administrator"
+
+    echo
+    log_info "Zadajte údaje pre admin používateľa:"
+    echo
+
+    # Email
+    read -p "Email [$DEFAULT_EMAIL]: " ADMIN_EMAIL
+    ADMIN_EMAIL="${ADMIN_EMAIL:-$DEFAULT_EMAIL}"
+
+    # Heslo
+    read -sp "Heslo [$DEFAULT_PASSWORD]: " ADMIN_PASSWORD
+    echo
+    ADMIN_PASSWORD="${ADMIN_PASSWORD:-$DEFAULT_PASSWORD}"
+
+    # Meno
+    read -p "Meno [$DEFAULT_NAME]: " ADMIN_NAME
+    ADMIN_NAME="${ADMIN_NAME:-$DEFAULT_NAME}"
+
+    echo
+    log_info "Vytváram admin účet..."
+
+    if node scripts/createAdmin.js "$ADMIN_EMAIL" "$ADMIN_PASSWORD" "$ADMIN_NAME"; then
+        log_success "Admin používateľ vytvorený"
+        echo
+        log_info "Prihlasovacie údaje:"
+        echo "  Email: $ADMIN_EMAIL"
+        echo "  Heslo: $ADMIN_PASSWORD"
+        echo
+        log_warning "DÔLEŽITÉ: Zmeňte heslo po prvom prihlásení!"
+    else
+        log_error "Nepodarilo sa vytvoriť admin používateľa"
+        log_info "Môžete ho vytvoriť neskôr príkazom:"
+        echo "  cd $PROJECT_DIR"
+        echo "  node scripts/createAdmin.js email@example.com heslo \"Meno\""
     fi
 }
 
@@ -446,9 +484,9 @@ print_final_message() {
 # Hlavná inštalačná sekvencia
 main() {
     # Načítanie verzie
-    VERSION="0.0.2"
+    VERSION="0.0.3"
     if [ -f "../VERSION" ]; then
-        VERSION=$(cat ../VERSION 2>/dev/null || echo "0.0.2")
+        VERSION=$(cat ../VERSION 2>/dev/null || echo "0.0.3")
     fi
 
     echo "============================================================================"

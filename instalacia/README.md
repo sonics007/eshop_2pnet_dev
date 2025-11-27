@@ -517,5 +517,5 @@ Pre podporu a reportovanie problémov:
 ---
 
 **Autor**: Claude Code
-**Verzia**: 0.0.2
+**Verzia**: 0.0.3
 **Posledná aktualizácia**: 2025-11-27
