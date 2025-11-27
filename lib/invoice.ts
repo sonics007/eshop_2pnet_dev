@@ -59,8 +59,30 @@ export async function generateInvoiceFromOrder(order: AdminOrder, templateVersio
 
 export async function persistInvoice(invoiceData: Awaited<ReturnType<typeof generateInvoiceFromOrder>>['invoice']) {
   try {
+    // Convert string orderId to int if needed, or find by externalId
+    let numericOrderId: number | undefined;
+    if (invoiceData.orderId) {
+      const parsed = parseInt(invoiceData.orderId, 10);
+      if (!isNaN(parsed)) {
+        numericOrderId = parsed;
+      } else {
+        // Try to find order by externalId
+        const order = await prisma.order.findUnique({
+          where: { externalId: invoiceData.orderId }
+        });
+        numericOrderId = order?.id;
+      }
+    }
+
+    const { orderId, ...restData } = invoiceData;
     const invoice = await prisma.invoice.create({
-      data: invoiceData
+      data: {
+        ...restData,
+        issueDate: new Date(restData.issueDate),
+        dueDate: new Date(restData.dueDate),
+        supplyDate: new Date(restData.supplyDate),
+        orderId: numericOrderId
+      }
     });
     return invoice;
   } catch (error) {

@@ -1,20 +1,26 @@
 ﻿import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
-import { Space_Grotesk, Inter } from 'next/font/google';
+import dynamic from 'next/dynamic';
+import { Inter } from 'next/font/google';
 import './globals.css';
 import { LanguageProvider } from '@/components/LanguageContext';
 import { AuthProvider } from '@/components/AuthContext';
 import { CartProvider } from '@/components/CartContext';
-import { FloatingChatTrigger } from '@/components/FloatingChatTrigger';
 
-const spaceGrotesk = Space_Grotesk({
-  subsets: ['latin'],
-  weight: ['400', '500', '600', '700'],
-  variable: '--font-display'
-});
+// Lazy-load chat komponenty - načítajú sa až po hlavnom obsahu
+const FloatingChatTrigger = dynamic(
+  () => import('@/components/FloatingChatTrigger').then(mod => ({ default: mod.FloatingChatTrigger })),
+  { ssr: false }
+);
+
+const TawkToWidget = dynamic(
+  () => import('@/components/TawkToWidget'),
+  { ssr: false }
+);
 
 const inter = Inter({
   subsets: ['latin'],
+  display: 'swap',
   variable: '--font-body'
 });
 
@@ -26,13 +32,14 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
-    <html lang="sk" className={`${spaceGrotesk.variable} ${inter.variable}`}>
+    <html lang="sk" className={inter.variable}>
       <body className="bg-slate-50 text-slate-900 antialiased">
         <LanguageProvider>
           <AuthProvider>
             <CartProvider>
               {children}
               <FloatingChatTrigger />
+              <TawkToWidget />
             </CartProvider>
           </AuthProvider>
         </LanguageProvider>

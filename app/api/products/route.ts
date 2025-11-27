@@ -41,10 +41,11 @@ export async function GET(request: Request) {
     where.category = { name: category };
   }
   if (query) {
+    // SQLite doesn't support 'mode: insensitive', using contains only
     where.OR = [
-      { name: { contains: query, mode: 'insensitive' } },
-      { description: { contains: query, mode: 'insensitive' } },
-      { tagline: { contains: query, mode: 'insensitive' } }
+      { name: { contains: query } },
+      { description: { contains: query } },
+      { tagline: { contains: query } }
     ];
   }
 

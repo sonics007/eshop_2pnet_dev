@@ -1,4 +1,11 @@
-﻿import { randomUUID } from 'crypto';
+/**
+ * LEGACY CHAT SESSIONS
+ *
+ * Tento súbor je ponechaný pre spätnú kompatibilitu.
+ * Nové funkcie používajú lib/modules/chat/service.ts
+ */
+
+import { randomUUID } from 'crypto';
 import { prisma } from '@/lib/prisma';
 
 export type ChatSessionInfo = {
@@ -11,6 +18,7 @@ export async function getOrCreateChatSession(sessionKey?: string, info?: ChatSes
   const key = sessionKey && sessionKey.trim().length ? sessionKey.trim() : randomUUID();
   const existing = await prisma.chatSession.findUnique({ where: { sessionKey: key } });
   const now = new Date();
+
   if (existing) {
     const updateData: Record<string, unknown> = { lastMessageAt: now };
     if (info?.name && info.name !== existing.visitorName) {
@@ -24,6 +32,7 @@ export async function getOrCreateChatSession(sessionKey?: string, info?: ChatSes
     }
     return prisma.chatSession.update({ where: { sessionKey: key }, data: updateData });
   }
+
   return prisma.chatSession.create({
     data: {
       sessionKey: key,
@@ -39,16 +48,13 @@ export async function getOrCreateChatSession(sessionKey?: string, info?: ChatSes
 export async function addChatMessage(
   sessionId: number,
   direction: 'visitor' | 'agent',
-  content: string,
-  meta?: { telegramMessageId?: string; telegramUpdateId?: string }
+  content: string
 ) {
   const message = await prisma.chatMessage.create({
     data: {
       sessionId,
       direction,
-      content,
-      telegramMessageId: meta?.telegramMessageId,
-      telegramUpdateId: meta?.telegramUpdateId
+      content
     }
   });
   await prisma.chatSession.update({

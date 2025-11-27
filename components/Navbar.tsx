@@ -60,6 +60,15 @@ export function Navbar({ logoLinks }: NavbarProps) {
       setDynamicLogoLinks(logoLinks);
       return;
     }
+    // Použijeme sessionStorage cache pre rýchlejšie načítanie
+    const cacheKey = 'navbar-logo-links';
+    const cached = typeof window !== 'undefined' ? sessionStorage.getItem(cacheKey) : null;
+    if (cached) {
+      try {
+        setDynamicLogoLinks(JSON.parse(cached));
+        return;
+      } catch { /* ignore */ }
+    }
     let mounted = true;
     const load = async () => {
       try {
@@ -67,10 +76,12 @@ export function Navbar({ logoLinks }: NavbarProps) {
         if (!response.ok) return;
         const data = await response.json();
         if (mounted && data?.links) {
-          setDynamicLogoLinks({
+          const links = {
             logoPrimaryLink: data.links.logoPrimaryLink ?? defaultLogoLinks.logoPrimaryLink,
             logoAdminLink: data.links.logoAdminLink ?? defaultLogoLinks.logoAdminLink
-          });
+          };
+          setDynamicLogoLinks(links);
+          sessionStorage.setItem(cacheKey, JSON.stringify(links));
         }
       } catch (error) {
         console.error('Nepodarilo sa načítať odkazy loga', error);

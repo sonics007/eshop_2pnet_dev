@@ -1,0 +1,33 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx prisma generate:*)",
+      "Bash(nul)",
+      "Bash(npx next build)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000/admin 2)",
+      "Bash(curl:*)",
+      "Bash(npx prisma migrate dev:*)",
+      "Bash(npx prisma db push:*)",
+      "Bash(taskkill:*)",
+      "Bash(node scripts/createAdmin.js:*)",
+      "Bash(dir /s /b componentsadminpanels)",
+      "Bash(dir /b appadmin)",
+      "Bash(mkdir:*)",
+      "Bash(npx tsc:*)",
+      "Bash(node -e:*)",
+      "Bash(tasklist:*)",
+      "Bash(findstr:*)",
+      "Bash(netstat:*)",
+      "Bash(dir:*)",
+      "Bash(timeout /t 2 /nobreak)",
+      "Bash(npm run dev:*)",
+      "Bash(bash:*)",
+      "Bash(tar:*)",
+      "Bash(cat:*)",
+      "Bash(git remote set-url:*)",
+      "Bash(git add:*)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}

@@ -99,20 +99,22 @@ export async function GET(_: Request, { params }: { params: { invoiceNumber: str
       return NextResponse.json({ success: false, message: 'Faktúra sa nenašla.' }, { status: 404 });
     }
 
+    // TypeScript doesn't narrow properly here, so we use a const
+    const inv = invoice;
     const itemsXml =
-      invoice.items.length > 0
-        ? invoice.items
+      inv.items.length > 0
+        ? inv.items
             .map(
               (item, index) => `
   <InvoiceLine>
     <cbc:ID>${index + 1}</cbc:ID>
     <cbc:InvoicedQuantity unitCode="EA">${item.quantity}</cbc:InvoicedQuantity>
-    <cbc:LineExtensionAmount currencyID="${invoice.currency}">${(item.price * item.quantity).toFixed(2)}</cbc:LineExtensionAmount>
+    <cbc:LineExtensionAmount currencyID="${inv.currency}">${(item.price * item.quantity).toFixed(2)}</cbc:LineExtensionAmount>
     <cac:Item>
       <cbc:Description>${escapeXml(item.name)}</cbc:Description>
     </cac:Item>
     <cac:Price>
-      <cbc:PriceAmount currencyID="${invoice.currency}">${item.price.toFixed(2)}</cbc:PriceAmount>
+      <cbc:PriceAmount currencyID="${inv.currency}">${item.price.toFixed(2)}</cbc:PriceAmount>
     </cac:Price>
   </InvoiceLine>`
             )
@@ -121,12 +123,12 @@ export async function GET(_: Request, { params }: { params: { invoiceNumber: str
   <InvoiceLine>
     <cbc:ID>1</cbc:ID>
     <cbc:InvoicedQuantity unitCode="EA">0</cbc:InvoicedQuantity>
-    <cbc:LineExtensionAmount currencyID="${invoice.currency}">0.00</cbc:LineExtensionAmount>
+    <cbc:LineExtensionAmount currencyID="${inv.currency}">0.00</cbc:LineExtensionAmount>
     <cac:Item>
       <cbc:Description>Bez položiek</cbc:Description>
     </cac:Item>
     <cac:Price>
-      <cbc:PriceAmount currencyID="${invoice.currency}">0.00</cbc:PriceAmount>
+      <cbc:PriceAmount currencyID="${inv.currency}">0.00</cbc:PriceAmount>
     </cac:Price>
   </InvoiceLine>`;
 
@@ -134,12 +136,12 @@ export async function GET(_: Request, { params }: { params: { invoiceNumber: str
 <Invoice xmlns="urn:cz:isdoc:invoice:1"
          xmlns:cbc="urn:oasis:names:specification:ubl:schema:xsd:CommonBasicComponents-2"
          xmlns:cac="urn:oasis:names:specification:ubl:schema:xsd:CommonAggregateComponents-2">
-  <cbc:ID>${invoice.invoiceNumber}</cbc:ID>
-  <cbc:UUID>${invoice.variableSymbol || invoice.invoiceNumber}</cbc:UUID>
-  <cbc:IssueDate>${invoice.issueDate}</cbc:IssueDate>
-  <cbc:DueDate>${invoice.dueDate}</cbc:DueDate>
-  <cbc:TaxPointDate>${invoice.supplyDate}</cbc:TaxPointDate>
-  <cbc:DocumentCurrencyCode>${invoice.currency}</cbc:DocumentCurrencyCode>
+  <cbc:ID>${inv.invoiceNumber}</cbc:ID>
+  <cbc:UUID>${inv.variableSymbol || inv.invoiceNumber}</cbc:UUID>
+  <cbc:IssueDate>${inv.issueDate}</cbc:IssueDate>
+  <cbc:DueDate>${inv.dueDate}</cbc:DueDate>
+  <cbc:TaxPointDate>${inv.supplyDate}</cbc:TaxPointDate>
+  <cbc:DocumentCurrencyCode>${inv.currency}</cbc:DocumentCurrencyCode>
   <cbc:Note>${escapeXml(template.phrases.legalNote)}</cbc:Note>
 
   <cac:AccountingSupplierParty>
@@ -157,28 +159,28 @@ export async function GET(_: Request, { params }: { params: { invoiceNumber: str
 
   <cac:AccountingCustomerParty>
     <cac:Party>
-      <cbc:Name>${escapeXml(invoice.customerName)}</cbc:Name>
-      <cac:CompanyID>${escapeXml(invoice.customerIco ?? '')}</cac:CompanyID>
-      <cbc:ID>${escapeXml(invoice.customerDic ?? '')}</cbc:ID>
+      <cbc:Name>${escapeXml(inv.customerName)}</cbc:Name>
+      <cac:CompanyID>${escapeXml(inv.customerIco ?? '')}</cac:CompanyID>
+      <cbc:ID>${escapeXml(inv.customerDic ?? '')}</cbc:ID>
     </cac:Party>
   </cac:AccountingCustomerParty>
 
   <cac:TaxTotal>
-    <cbc:TaxAmount currencyID="${invoice.currency}">${invoice.vatValue.toFixed(2)}</cbc:TaxAmount>
+    <cbc:TaxAmount currencyID="${inv.currency}">${inv.vatValue.toFixed(2)}</cbc:TaxAmount>
     <cac:TaxSubtotal>
-      <cbc:TaxableAmount currencyID="${invoice.currency}">${invoice.basePrice.toFixed(2)}</cbc:TaxableAmount>
-      <cbc:TaxAmount currencyID="${invoice.currency}">${invoice.vatValue.toFixed(2)}</cbc:TaxAmount>
+      <cbc:TaxableAmount currencyID="${inv.currency}">${inv.basePrice.toFixed(2)}</cbc:TaxableAmount>
+      <cbc:TaxAmount currencyID="${inv.currency}">${inv.vatValue.toFixed(2)}</cbc:TaxAmount>
       <cac:TaxCategory>
-        <cbc:Percent>${invoice.vatRate.toFixed(2)}</cbc:Percent>
+        <cbc:Percent>${inv.vatRate.toFixed(2)}</cbc:Percent>
       </cac:TaxCategory>
     </cac:TaxSubtotal>
   </cac:TaxTotal>
 
   <cac:LegalMonetaryTotal>
-    <cbc:LineExtensionAmount currencyID="${invoice.currency}">${invoice.basePrice.toFixed(2)}</cbc:LineExtensionAmount>
-    <cbc:TaxExclusiveAmount currencyID="${invoice.currency}">${invoice.basePrice.toFixed(2)}</cbc:TaxExclusiveAmount>
-    <cbc:TaxInclusiveAmount currencyID="${invoice.currency}">${invoice.totalPrice.toFixed(2)}</cbc:TaxInclusiveAmount>
-    <cbc:PayableAmount currencyID="${invoice.currency}">${invoice.totalPrice.toFixed(2)}</cbc:PayableAmount>
+    <cbc:LineExtensionAmount currencyID="${inv.currency}">${inv.basePrice.toFixed(2)}</cbc:LineExtensionAmount>
+    <cbc:TaxExclusiveAmount currencyID="${inv.currency}">${inv.basePrice.toFixed(2)}</cbc:TaxExclusiveAmount>
+    <cbc:TaxInclusiveAmount currencyID="${inv.currency}">${inv.totalPrice.toFixed(2)}</cbc:TaxInclusiveAmount>
+    <cbc:PayableAmount currencyID="${inv.currency}">${inv.totalPrice.toFixed(2)}</cbc:PayableAmount>
   </cac:LegalMonetaryTotal>
 
 ${itemsXml}
@@ -187,7 +189,7 @@ ${itemsXml}
     return new NextResponse(xml, {
       headers: {
         'Content-Type': 'application/xml; charset=utf-8',
-        'Content-Disposition': `attachment; filename="${invoice.invoiceNumber}.isdoc"`
+        'Content-Disposition': `attachment; filename="${inv.invoiceNumber}.isdoc"`
       }
     });
   } catch (error) {

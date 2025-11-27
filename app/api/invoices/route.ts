@@ -7,7 +7,10 @@ import type { AdminOrder, InvoiceRecord } from '@/types/orders';
 
 export async function GET() {
   try {
-    const invoices = await prisma.invoice.findMany({ orderBy: { issueDate: 'desc' } });
+    const invoices = await prisma.invoice.findMany({
+      orderBy: { issueDate: 'desc' },
+      include: { order: true }
+    });
     if (!invoices.length) {
       throw new Error('No invoices in DB');
     }

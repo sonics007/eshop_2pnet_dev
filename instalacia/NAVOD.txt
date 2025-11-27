@@ -1,0 +1,131 @@
+╔══════════════════════════════════════════════════════════════════════════╗
+║                                                                          ║
+║              ESHOP - JEDNODUCHÝ NÁVOD NA INŠTALÁCIU                     ║
+║                     Pre Debian 12 Server                                ║
+║                                                                          ║
+╚══════════════════════════════════════════════════════════════════════════╝
+
+
+█ ČO POTREBUJETE:
+
+  ✓ Debian 12 server (čistá inštalácia)
+  ✓ SSH prístup
+  ✓ Sudo práva
+  ✓ Internet pripojenie
+
+
+█ INŠTALÁCIA V 3 KROKOCH:
+
+
+┌──────────────────────────────────────────────────────────────────────────┐
+│ KROK 1: Prenos súboru na server                                         │
+└──────────────────────────────────────────────────────────────────────────┘
+
+  Z tohto počítača (Windows):
+
+  scp instalacia/package/eshop-debian12-*.tar.gz user@VÁŠ_SERVER:/tmp/
+
+  Nahraďte:
+  - "user" za vaše používateľské meno na serveri
+  - "VÁŠ_SERVER" za IP adresu alebo doménu servera
+
+
+┌──────────────────────────────────────────────────────────────────────────┐
+│ KROK 2: Pripojenie na server a rozbalenie                               │
+└──────────────────────────────────────────────────────────────────────────┘
+
+  ssh user@VÁŠ_SERVER
+
+  cd /opt
+  sudo tar -xzf /tmp/eshop-debian12-*.tar.gz
+  cd eshop
+
+
+┌──────────────────────────────────────────────────────────────────────────┐
+│ KROK 3: Spustenie inštalácie                                            │
+└──────────────────────────────────────────────────────────────────────────┘
+
+  cd instalacia
+  chmod +x install.sh
+  ./install.sh
+
+  Sledujte pokyny na obrazovke!
+
+
+█ HOTOVO!
+
+  Po úspešnej inštalácii:
+
+  Aplikácia beží na:    http://VÁŠ_SERVER:3000
+  Admin panel:          http://VÁŠ_SERVER:3000/admin
+
+
+█ ZÁKLADNÉ PRÍKAZY:
+
+  Spustenie servera:
+  sudo systemctl start eshop
+
+  Zastavenie servera:
+  sudo systemctl stop eshop
+
+  Stav servera:
+  sudo systemctl status eshop
+
+  Sledovanie logov:
+  sudo journalctl -u eshop -f
+
+
+█ AKTUALIZÁCIA:
+
+  cd /opt/eshop/instalacia
+  ./deploy.sh
+
+
+█ ZÁLOHA:
+
+  cd /opt/eshop/instalacia
+  ./backup.sh
+
+
+█ RIEŠENIE PROBLÉMOV:
+
+  1. Server sa nespustí:
+     sudo journalctl -u eshop -n 50
+
+  2. Port 3000 obsadený:
+     sudo netstat -tlnp | grep 3000
+     sudo kill -9 <PID>
+
+  3. Chýbajú závislosti:
+     cd /opt/eshop
+     npm install
+     npx prisma generate
+
+
+█ PODPORA:
+
+  Detailná dokumentácia:
+  - instalacia/README.md       (kompletná príručka)
+  - instalacia/quick-start.md  (rýchly štart)
+  - instalacia/OBSAH.md        (prehľad)
+
+
+█ BEZPEČNOSŤ:
+
+  ⚠ DÔLEŽITÉ po inštalácii:
+
+  1. Zmeňte admin heslo
+  2. Nastavte silný JWT_SECRET v /opt/eshop/.env
+  3. Aktivujte firewall:
+     sudo ufw enable
+     sudo ufw allow 22,80,443/tcp
+  4. Nainštalujte SSL certifikát:
+     sudo apt-get install certbot python3-certbot-nginx
+     sudo certbot --nginx -d vaša-doména.com
+
+
+╔══════════════════════════════════════════════════════════════════════════╗
+║  Vytvorené: 2025-11-25                                                   ║
+║  Autor: Claude Code                                                      ║
+║  Verzia: 1.0.0                                                           ║
+╚══════════════════════════════════════════════════════════════════════════╝

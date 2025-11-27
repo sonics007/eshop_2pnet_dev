@@ -61,6 +61,7 @@ model User {
   vatId            String?
   role             String    @default("user")
   twoFactorEnabled Boolean   @default(false)
+  twoFactorSecret  String?
   createdAt        DateTime  @default(now())
   orders           Order[]
   invoices         Invoice[]
@@ -149,14 +150,12 @@ model ChatSession {
 }
 
 model ChatMessage {
-  id                Int         @id @default(autoincrement())
-  session           ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  sessionId         Int
-  direction         String
-  content           String
-  telegramMessageId String?
-  telegramUpdateId  String?
-  createdAt         DateTime    @default(now())
+  id        Int         @id @default(autoincrement())
+  session   ChatSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sessionId Int
+  direction String
+  content   String
+  createdAt DateTime    @default(now())
 }
 
 model Config {

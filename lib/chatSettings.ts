@@ -20,4 +20,10 @@ export async function writeChatSettings(settings: ChatSettings) {
   await writeConfig(CONFIG_KEY, value);
 }
 
-export { defaultChatSettings, type ChatSettings, type ChatScheduleEntry } from '@/lib/chatSettingsShared';
+export {
+  defaultChatSettings,
+  defaultTawkToSettings,
+  type ChatSettings,
+  type ChatScheduleEntry,
+  type TawkToSettings
+} from '@/lib/chatSettingsShared';

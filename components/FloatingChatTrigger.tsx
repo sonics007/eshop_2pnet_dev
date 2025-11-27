@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent } from 'react';
 import { useLanguage } from '@/components/LanguageContext';
@@ -11,58 +11,65 @@ type FormState = {
   message: string;
 };
 
+type ChatMessage = {
+  id: number;
+  direction: 'visitor' | 'agent';
+  content: string;
+  createdAt: string;
+};
+
 const DEFAULT_TIMEZONE = 'Europe/Bratislava';
+const sessionStorageKey = 'chat-session-key';
+const profileStorageKey = 'chat-profile-complete';
 
 const copy = {
   sk: {
     button: 'Live chat',
     titleOnline: 'Sme online',
-    titleOffline: 'Zanechajte správu',
+    titleOffline: 'Zanechajte spravu',
     name: 'Meno a priezvisko',
-    phone: 'Telefón',
+    phone: 'Telefon',
     email: 'E-mail',
-    message: 'Vaša otázka',
-    send: 'Odoslať správu',
-    sending: 'Odosielame…',
-    success: 'Správa bola odoslaná. Ozveme sa čo najskôr.',
-    error: 'Nepodarilo sa odoslať správu. Skúste neskôr.',
-    offlineNote: 'Momentálne sme offline. Správa pôjde na e-mail administrátora.',
-    channelMissing: 'Komunikačný kanál zatiaľ nie je dokončený – použije sa e-mail.',
+    message: 'Vasa otazka',
+    send: 'Odoslat spravu',
+    sending: 'Odosielame...',
+    success: 'Sprava bola odoslana. Ozveme sa co najskor.',
+    error: 'Nepodarilo sa odoslat spravu. Skuste neskor.',
+    offlineNote: 'Sprava pojde na e-mail administratora.',
     scheduleLabel: 'Online hodiny',
-    scheduleTodayOnline: 'Dnes aktívne',
-    scheduleTodayOffline: 'Dnes mimo pracovných hodín',
-    scheduleFallback: 'Online hodiny ešte nie sú nastavené.',
-    loading: 'Načítavam nastavenie…',
-    alwaysOnlineInfo: 'Podpora reaguje nonstop – správa smeruje priamo do vybraného kanála.',
-    empty: 'Napíšte svoju otázku.'
+    scheduleTodayOnline: 'Dnes aktivne',
+    scheduleTodayOffline: 'Dnes mimo pracovnych hodin',
+    scheduleFallback: 'Online hodiny este nie su nastavene.',
+    loading: 'Nacitavam nastavenie...',
+    alwaysOnlineInfo: 'Podpora reaguje nonstop - sprava smeruje na admin e-mail.',
+    empty: 'Napiste svoju otazku.'
   },
   cz: {
     button: 'Live chat',
     titleOnline: 'Jsme online',
-    titleOffline: 'Zanechte zprávu',
-    name: 'Jméno a příjmení',
+    titleOffline: 'Zanechte zpravu',
+    name: 'Jmeno a prijmeni',
     phone: 'Telefon',
     email: 'E-mail',
-    message: 'Vaše otázka',
-    send: 'Odeslat zprávu',
-    sending: 'Odesíláme…',
-    success: 'Zpráva byla odeslána. Ozveme se co nejdříve.',
-    error: 'Nepodařilo se odeslat zprávu. Zkuste to později.',
-    offlineNote: 'Právě nejsme online. Zprávu přepošleme na e-mail administrátora.',
-    channelMissing: 'Komunikační kanál zatím není připraven – použije se e-mail.',
+    message: 'Vase otazka',
+    send: 'Odeslat zpravu',
+    sending: 'Odesilame...',
+    success: 'Zprava byla odeslana. Ozveme se co nejdrive.',
+    error: 'Nepodarilo se odeslat zpravu. Zkuste to pozdeji.',
+    offlineNote: 'Zpravu preposleme na e-mail administratora.',
     scheduleLabel: 'Online hodiny',
-    scheduleTodayOnline: 'Dnes aktivní',
-    scheduleTodayOffline: 'Dnes mimo pracovní dobu',
-    scheduleFallback: 'Online hodiny zatím nejsou nastavené.',
-    loading: 'Načítám nastavení…',
-    alwaysOnlineInfo: 'Podpora je dostupná 24/7 – zpráva jde přímo do zvoleného kanálu.',
-    empty: 'Napište svou otázku.'
+    scheduleTodayOnline: 'Dnes aktivni',
+    scheduleTodayOffline: 'Dnes mimo pracovni dobu',
+    scheduleFallback: 'Online hodiny zatim nejsou nastavene.',
+    loading: 'Nacitam nastaveni...',
+    alwaysOnlineInfo: 'Podpora je dostupna 24/7 - zprava ide na admin e-mail.',
+    empty: 'Napiste svou otazku.'
   }
 } as const;
 
 const weekdayLabels = {
-  sk: ['Nedeľa', 'Pondelok', 'Utorok', 'Streda', 'Štvrtok', 'Piatok', 'Sobota'],
-  cz: ['Neděle', 'Pondělí', 'Úterý', 'Středa', 'Čtvrtek', 'Pátek', 'Sobota']
+  sk: ['Nedela', 'Pondelok', 'Utorok', 'Streda', 'Stvrtok', 'Piatok', 'Sobota'],
+  cz: ['Nedele', 'Pondeli', 'Utery', 'Streda', 'Ctvrtek', 'Patek', 'Sobota']
 } as const;
 
 const weekdayMap: Record<string, number> = {
@@ -81,16 +88,6 @@ const initialForm: FormState = {
   email: '',
   message: ''
 };
-
-type ChatMessage = {
-  id: number;
-  direction: 'visitor' | 'agent';
-  content: string;
-  createdAt: string;
-};
-
-const sessionStorageKey = 'chat-session-key';
-const profileStorageKey = 'chat-profile-complete';
 
 type ZonedSnapshot = {
   day: number;
@@ -199,6 +196,16 @@ export function FloatingChatTrigger() {
   };
 
   useEffect(() => {
+    // Použijeme sessionStorage cache pre rýchlejšie načítanie
+    const cacheKey = 'chat-settings-cache';
+    const cached = typeof window !== 'undefined' ? sessionStorage.getItem(cacheKey) : null;
+    if (cached) {
+      try {
+        setSettings(JSON.parse(cached));
+        setLoading(false);
+        return;
+      } catch { /* ignore */ }
+    }
     let mounted = true;
     const load = async () => {
       try {
@@ -207,6 +214,7 @@ export function FloatingChatTrigger() {
         const payload = (await response.json()) as ChatSettings;
         if (mounted) {
           setSettings(payload);
+          sessionStorage.setItem(cacheKey, JSON.stringify(payload));
         }
       } catch (error) {
         console.error('Chat settings load failed', error);
@@ -240,7 +248,7 @@ export function FloatingChatTrigger() {
         if (active) {
           const allMessages = data.messages ?? [];
           setMessages(allMessages);
-          if (!profileComplete && allMessages.some((message) => message.direction === 'visitor')) {
+          if (!profileComplete && allMessages.some((message: ChatMessage) => message.direction === 'visitor')) {
             markProfileComplete();
           }
         }
@@ -271,13 +279,6 @@ export function FloatingChatTrigger() {
   const snapshot = useMemo(() => getZonedSnapshot(timezone, timestamp), [timezone, timestamp]);
   const isOnline = useMemo(() => resolveIsOnline(settings, snapshot), [settings, snapshot]);
   const todaySlot = useMemo(() => findTodaySlot(settings, snapshot), [settings, snapshot]);
-  const channelType = settings?.channelType === 'messenger' ? 'messenger' : 'telegram';
-  const channelLabel = channelType === 'messenger' ? 'Messenger' : 'Telegram';
-  const telegramTarget = settings?.telegramGroupId || settings?.telegramChatId;
-  const channelReady =
-    channelType === 'messenger'
-      ? Boolean(settings?.messengerPageToken && settings?.messengerRecipientId)
-      : Boolean(settings?.telegramBotToken && telegramTarget);
   const showOfflineNote = !isOnline && !settings?.alwaysOnline;
 
   const handleChange = (key: keyof FormState) => (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
@@ -289,16 +290,11 @@ export function FloatingChatTrigger() {
     if (status === 'sending' || !sessionKey) return;
     if (!form.message.trim()) {
       setStatus('error');
-      setTimeout(() => setStatus('idle'), 2000);
+      setTimeout(() => setStatus('idle'), 1500);
       return;
     }
     setStatus('sending');
-    const useLiveChannel = isOnline && channelReady;
-    const endpoint = useLiveChannel
-      ? channelType === 'messenger'
-        ? '/api/chat/send-messenger'
-        : '/api/chat/send-telegram'
-      : '/api/chat/send-email';
+    const endpoint = '/api/chat/send-email';
     try {
       const response = await fetch(endpoint, {
         method: 'POST',
@@ -319,11 +315,11 @@ export function FloatingChatTrigger() {
       setStatus('success');
       setForm((prev) => ({ ...prev, message: '' }));
       messagesFetcherRef.current?.();
-      setTimeout(() => setStatus('idle'), 2000);
+      setTimeout(() => setStatus('idle'), 1500);
     } catch (error) {
       console.error('Chat submit failed', error);
       setStatus('error');
-      setTimeout(() => setStatus('idle'), 2000);
+      setTimeout(() => setStatus('idle'), 1500);
     }
   };
 
@@ -336,16 +332,13 @@ export function FloatingChatTrigger() {
               <p className="text-xs uppercase tracking-[0.3em] text-slate-400">
                 {isOnline ? text.titleOnline : text.titleOffline}
               </p>
-              <p className="text-lg font-semibold text-slate-900">
-                {channelLabel}
-                {settings?.whatsappNumber ? ` · ${settings.whatsappNumber}` : ''}
-              </p>
+              <p className="text-lg font-semibold text-slate-900">Live chat</p>
             </div>
             <button
               type="button"
               onClick={() => setIsOpen(false)}
               className="rounded-full p-1 text-slate-500 transition hover:bg-slate-100"
-              aria-label="Zavrieť chat"
+              aria-label="Zavriet chat"
             >
               ×
             </button>
@@ -358,84 +351,58 @@ export function FloatingChatTrigger() {
             ) : settings?.alwaysOnline ? (
               <p className="mt-1">{text.alwaysOnlineInfo}</p>
             ) : todaySlot ? (
-              <p className="mt-1">
-                {(isOnline ? text.scheduleTodayOnline : text.scheduleTodayOffline) + ' '}
-                {weekdayLabels[language][todaySlot.day]} {todaySlot.start} – {todaySlot.end}
+              <p className="mt-1 text-emerald-600">
+                {text.scheduleTodayOnline}: {todaySlot.start} - {todaySlot.end}
               </p>
+            ) : settings?.onlineHours?.length ? (
+              <p className="mt-1 text-slate-600">{text.scheduleTodayOffline}</p>
             ) : (
-              <p className="mt-1">{text.scheduleFallback}</p>
+              <p className="mt-1 text-slate-600">{text.scheduleFallback}</p>
             )}
           </div>
 
-          {showOfflineNote && <p className="mt-3 text-xs text-slate-500">{text.offlineNote}</p>}
-          {!channelReady && (
-            <p className="mt-2 text-xs text-amber-600">{text.channelMissing}</p>
-          )}
+          {showOfflineNote && <p className="mt-2 text-xs text-slate-500">{text.offlineNote}</p>}
 
-          <div className="mt-4 max-h-48 space-y-2 overflow-y-auto">
-            {messages.length === 0 ? (
-              <p className="text-xs text-slate-500">{text.empty}</p>
-            ) : (
-              messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`flex ${message.direction === 'visitor' ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div
-                    className={`max-w-[85%] rounded-2xl px-3 py-2 text-sm ${
-                      message.direction === 'visitor'
-                        ? 'bg-slate-900 text-white'
-                        : 'bg-slate-100 text-slate-800'
-                    }`}
-                  >
-                    <p>{message.content}</p>
-                    <span className="mt-1 block text-[10px] opacity-70">
-                      {new Date(message.createdAt).toLocaleTimeString(
-                        language === 'cz' ? 'cs-CZ' : 'sk-SK',
-                        { hour: '2-digit', minute: '2-digit' }
-                      )}
-                    </span>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-
-          <form className="mt-4 space-y-3" onSubmit={handleSubmit}>
+          <form className="mt-3 space-y-2" onSubmit={handleSubmit}>
             {!profileComplete && (
               <>
                 <input
-                  required
                   value={form.name}
                   onChange={handleChange('name')}
+                  className="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none"
                   placeholder={text.name}
-                  className="w-full rounded-2xl border border-slate-200 px-4 py-2 text-sm focus:border-slate-900 focus:outline-none"
                 />
                 <input
-                  required
                   value={form.phone}
                   onChange={handleChange('phone')}
+                  className="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none"
                   placeholder={text.phone}
-                  className="w-full rounded-2xl border border-slate-200 px-4 py-2 text-sm focus:border-slate-900 focus:outline-none"
                 />
                 <input
-                  required
-                  type="email"
                   value={form.email}
                   onChange={handleChange('email')}
+                  className="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none"
                   placeholder={text.email}
-                  className="w-full rounded-2xl border border-slate-200 px-4 py-2 text-sm focus:border-slate-900 focus:outline-none"
                 />
               </>
             )}
             <textarea
-              required
               value={form.message}
               onChange={handleChange('message')}
-              placeholder={text.message}
+              className="w-full rounded-2xl border border-slate-200 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none"
               rows={3}
-              className="w-full rounded-2xl border border-slate-200 px-4 py-2 text-sm focus:border-slate-900 focus:outline-none"
+              placeholder={text.message}
             />
+            {messages.length > 0 && (
+              <div className="max-h-32 overflow-y-auto rounded-2xl border border-slate-100 bg-slate-50 p-2 text-xs text-slate-600">
+                {messages.map((m) => (
+                  <div key={m.id} className={`mb-1 ${m.direction === 'agent' ? 'text-emerald-700' : 'text-slate-700'}`}>
+                    <span className="font-semibold">{m.direction === 'agent' ? 'Podpora: ' : 'Vy: '}</span>
+                    {m.content}
+                  </div>
+                ))}
+              </div>
+            )}
             <button
               type="submit"
               disabled={status === 'sending' || !sessionKey}
@@ -451,18 +418,12 @@ export function FloatingChatTrigger() {
 
       <button
         type="button"
-        onClick={() => setIsOpen((prev) => !prev)}
-        className="flex items-center gap-3 rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white shadow-xl transition hover:bg-slate-800"
+        onClick={() => setIsOpen((p) => !p)}
+        className="flex items-center gap-2 rounded-full bg-slate-900 px-5 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-slate-800"
       >
-        <span
-          className={`h-2.5 w-2.5 rounded-full ${isOnline ? 'bg-emerald-400' : 'bg-amber-400'} ring-2 ring-white/30`}
-        ></span>
-        {text.button}
+        <span>💬</span>
+        {copy[language].button}
       </button>
     </div>
   );
 }
-
-
-
-

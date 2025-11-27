@@ -4,23 +4,38 @@ export type ChatScheduleEntry = {
   end: string; // HH:mm
 };
 
+// Tawk.to konfigurácia
+export type TawkToSettings = {
+  enabled: boolean;
+  propertyId: string;
+  widgetId: string;
+};
+
 export type ChatSettings = {
-  whatsappNumber: string;
+  // Základné nastavenia
   adminEmail: string;
   timezone?: string;
+
+  // Online hodiny
   onlineHours?: ChatScheduleEntry[];
   alwaysOnline?: boolean;
-  channelType?: 'telegram' | 'messenger' | 'whatsapp' | 'imessage';
-  telegramBotToken?: string;
-  telegramChatId?: string;
-  telegramGroupId?: string;
-  messengerPageToken?: string;
-  messengerRecipientId?: string;
-  imessageAddress?: string;
+
+  // Email nastavenia
+  emailSubjectPrefix?: string;
+  autoReplyEnabled?: boolean;
+  autoReplyMessage?: string;
+
+  // Tawk.to integrácia
+  tawkTo?: TawkToSettings;
+};
+
+export const defaultTawkToSettings: TawkToSettings = {
+  enabled: false,
+  propertyId: '',
+  widgetId: ''
 };
 
 export const defaultChatSettings: ChatSettings = {
-  whatsappNumber: '',
   adminEmail: '',
   timezone: 'Europe/Bratislava',
   onlineHours: [
@@ -31,39 +46,31 @@ export const defaultChatSettings: ChatSettings = {
     { day: 5, start: '08:00', end: '15:00' }
   ],
   alwaysOnline: false,
-  channelType: 'telegram',
-  telegramBotToken: '',
-  telegramChatId: '',
-  telegramGroupId: '',
-  messengerPageToken: '',
-  messengerRecipientId: '',
-  imessageAddress: ''
+  emailSubjectPrefix: '[Eshop Chat]',
+  autoReplyEnabled: false,
+  autoReplyMessage: 'Ďakujeme za vašu správu. Ozveme sa vám čo najskôr.',
+  tawkTo: defaultTawkToSettings
 };
+
+export function mergeTawkToSettings(payload: Partial<TawkToSettings> | null | undefined): TawkToSettings {
+  const base = payload ?? {};
+  return {
+    enabled: base.enabled ?? defaultTawkToSettings.enabled,
+    propertyId: base.propertyId ?? defaultTawkToSettings.propertyId,
+    widgetId: base.widgetId ?? defaultTawkToSettings.widgetId
+  };
+}
 
 export function mergeChatSettings(payload: Partial<ChatSettings> | null | undefined): ChatSettings {
   const base = payload ?? {};
   return {
-    whatsappNumber: base.whatsappNumber ?? defaultChatSettings.whatsappNumber,
     adminEmail: base.adminEmail ?? defaultChatSettings.adminEmail,
     timezone: base.timezone ?? defaultChatSettings.timezone,
     onlineHours: base.onlineHours ?? defaultChatSettings.onlineHours,
     alwaysOnline: base.alwaysOnline ?? defaultChatSettings.alwaysOnline,
-    channelType: ((): ChatSettings['channelType'] => {
-      switch (base.channelType) {
-        case 'messenger':
-        case 'whatsapp':
-        case 'imessage':
-          return base.channelType;
-        default:
-          return 'telegram';
-      }
-    })(),
-    telegramBotToken: base.telegramBotToken ?? defaultChatSettings.telegramBotToken,
-    telegramChatId: base.telegramChatId ?? defaultChatSettings.telegramChatId,
-    telegramGroupId: base.telegramGroupId ?? defaultChatSettings.telegramGroupId,
-    messengerPageToken: base.messengerPageToken ?? defaultChatSettings.messengerPageToken,
-    messengerRecipientId: base.messengerRecipientId ?? defaultChatSettings.messengerRecipientId,
-    imessageAddress: base.imessageAddress ?? defaultChatSettings.imessageAddress
+    emailSubjectPrefix: base.emailSubjectPrefix ?? defaultChatSettings.emailSubjectPrefix,
+    autoReplyEnabled: base.autoReplyEnabled ?? defaultChatSettings.autoReplyEnabled,
+    autoReplyMessage: base.autoReplyMessage ?? defaultChatSettings.autoReplyMessage,
+    tawkTo: mergeTawkToSettings(base.tawkTo)
   };
 }
-

@@ -1,13 +1,40 @@
 import { NextResponse } from 'next/server';
-import { readChatSettings, writeChatSettings, type ChatSettings } from '@/lib/chatSettings';
+import { getChatSettings, saveChatSettings } from '@/lib/modules/chat/service';
+import type { ChatSettings } from '@/lib/modules/chat';
 
+/**
+ * GET /api/chat/settings
+ *
+ * Získanie nastavení chat modulu
+ */
 export async function GET() {
-  const settings = await readChatSettings();
-  return NextResponse.json(settings);
+  try {
+    const settings = await getChatSettings();
+    return NextResponse.json(settings);
+  } catch (error) {
+    console.error('Failed to get chat settings:', error);
+    return NextResponse.json(
+      { error: 'Chyba pri načítaní nastavení' },
+      { status: 500 }
+    );
+  }
 }
 
+/**
+ * POST /api/chat/settings
+ *
+ * Uloženie nastavení chat modulu
+ */
 export async function POST(request: Request) {
-  const payload = (await request.json()) as ChatSettings;
-  await writeChatSettings(payload);
-  return NextResponse.json({ success: true });
+  try {
+    const payload = (await request.json()) as Partial<ChatSettings>;
+    const updated = await saveChatSettings(payload);
+    return NextResponse.json({ success: true, settings: updated });
+  } catch (error) {
+    console.error('Failed to save chat settings:', error);
+    return NextResponse.json(
+      { success: false, error: 'Chyba pri ukladaní nastavení' },
+      { status: 500 }
+    );
+  }
 }
