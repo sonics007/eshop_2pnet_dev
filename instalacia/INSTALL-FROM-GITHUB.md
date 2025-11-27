@@ -1,8 +1,24 @@
 # 🚀 Inštalácia ESHOP z GitHubu na Debian 12
 
+## ⚠️ Dôležité: Požiadavky na systém
+
+**Pre LXC kontajnery (Proxmox):**
+- **Disk**: Minimálne **16-20 GB** (odporúčané)
+- **RAM**: 2 GB (odporúčané 4 GB)
+
+> 💡 **Tip**: Ak dostanete chybu "ENOSPC: no space left on device", zväčšite disk:
+> ```bash
+> # Na Proxmox hoste:
+> pct stop <CTID>
+> pct resize <CTID> rootfs +8G
+> pct start <CTID>
+> ```
+
+---
+
 ## 🎯 Najrýchlejšia inštalácia (1 príkaz)
 
-Pripojte sa na svoj Debian 12 server a spustite:
+Pripojte sa na svoj Debian 12 server **ako root** (v LXC) a spustite:
 
 ```bash
 curl -sSL https://raw.githubusercontent.com/sonics007/eshop_2pnet_dev/main/instalacia/quick-install.sh | bash
@@ -37,17 +53,20 @@ curl -sSL https://raw.githubusercontent.com/sonics007/eshop_2pnet_dev/main/insta
 
 ---
 
-## 📋 Metóda 2: Manuálna inštalácia
+## 📋 Metóda 2: Manuálna inštalácia (Git clone)
+
+**Odporúčané pre private repositories a LXC kontajnery**
 
 ### Krok 1: Stiahnutie projektu
 
 ```bash
+# Inštalácia git
+apt-get update
+apt-get install -y git
+
 # Klonujte repozitár
-sudo apt-get update
-sudo apt-get install -y git
 cd /opt
-sudo git clone https://github.com/sonics007/eshop_2pnet_dev.git eshop
-sudo chown -R $USER:$USER eshop
+git clone https://github.com/sonics007/eshop_2pnet_dev.git eshop
 cd eshop
 ```
 
@@ -58,6 +77,8 @@ cd instalacia
 chmod +x install.sh
 ./install.sh
 ```
+
+> 💡 **Poznámka**: Skripty automaticky detekujú root a prispôsobia sa (nepotrebujete sudo)
 
 ---
 

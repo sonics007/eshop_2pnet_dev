@@ -322,6 +322,94 @@ EOF
     log_success "Nginx nainštalovaný a nakonfigurovaný"
 }
 
+# Spustenie servera
+start_server() {
+    echo
+    log_info "Chcete spustiť server teraz? (y/n): "
+    read -n 1 -r
+    echo
+
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+        return
+    fi
+
+    cd "$PROJECT_DIR"
+
+    # Ak existuje systemd služba, použiť ju
+    if [ -f "/etc/systemd/system/eshop.service" ]; then
+        log_info "Spúšťam server cez systemd..."
+        run_sudo systemctl start eshop
+
+        # Pauza na spustenie
+        sleep 3
+
+        # Kontrola statusu
+        if run_sudo systemctl is-active --quiet eshop; then
+            log_success "Server úspešne spustený!"
+
+            # Získanie IP adresy
+            SERVER_IP=$(hostname -I | awk '{print $1}')
+
+            echo
+            log_info "Aplikácia beží na:"
+            echo "  http://$SERVER_IP:3000"
+            echo "  http://localhost:3000"
+            echo
+            log_info "Admin panel:"
+            echo "  http://$SERVER_IP:3000/admin"
+            echo
+            log_info "Správa služby:"
+            if [ "$IS_ROOT" = true ]; then
+                echo "  systemctl stop eshop     # Zastaviť"
+                echo "  systemctl restart eshop  # Reštartovať"
+                echo "  systemctl status eshop   # Stav"
+            else
+                echo "  sudo systemctl stop eshop     # Zastaviť"
+                echo "  sudo systemctl restart eshop  # Reštartovať"
+                echo "  sudo systemctl status eshop   # Stav"
+            fi
+            echo
+            log_info "Logy:"
+            if [ "$IS_ROOT" = true ]; then
+                echo "  journalctl -u eshop -f"
+            else
+                echo "  sudo journalctl -u eshop -f"
+            fi
+        else
+            log_error "Server sa nepodarilo spustiť!"
+            log_info "Skúste manuálne:"
+            if [ "$IS_ROOT" = true ]; then
+                echo "  systemctl start eshop"
+                echo "  journalctl -u eshop -n 50"
+            else
+                echo "  sudo systemctl start eshop"
+                echo "  sudo journalctl -u eshop -n 50"
+            fi
+        fi
+    else
+        # Spustenie v development mode
+        log_info "Spúšťam vývojový server..."
+        log_warning "Server beží v popredí. Pre zastavenie použite Ctrl+C"
+        echo
+
+        # Získanie IP adresy
+        SERVER_IP=$(hostname -I | awk '{print $1}')
+
+        echo
+        log_info "Aplikácia bude dostupná na:"
+        echo "  http://$SERVER_IP:3000"
+        echo "  http://localhost:3000"
+        echo
+        log_info "Admin panel:"
+        echo "  http://$SERVER_IP:3000/admin"
+        echo
+        echo "Spúšťam..."
+        echo
+
+        npm run dev
+    fi
+}
+
 # Finálna správa
 print_final_message() {
     echo
@@ -329,24 +417,29 @@ print_final_message() {
     log_success "Inštalácia dokončená!"
     echo "============================================================================"
     echo
-    log_info "Pre spustenie vývojového servera:"
-    echo "  cd $PROJECT_DIR"
-    echo "  npm run dev"
+
+    SERVER_IP=$(hostname -I | awk '{print $1}' 2>/dev/null || echo "localhost")
+
+    log_info "Aplikácia je pripravená na použitie!"
     echo
-    log_info "Pre spustenie produkčného servera:"
-    echo "  cd $PROJECT_DIR"
-    echo "  npm run build"
-    echo "  npm start"
+    log_info "URLs:"
+    echo "  Homepage:    http://$SERVER_IP:3000"
+    echo "  Admin panel: http://$SERVER_IP:3000/admin"
     echo
-    log_info "Aplikácia bude dostupná na:"
-    echo "  http://localhost:3000"
-    echo
+
     if [ -f "/etc/systemd/system/eshop.service" ]; then
-        log_info "Systemd služba:"
-        echo "  sudo systemctl start eshop"
+        log_info "Systemd služba je nakonfigurovaná"
+        log_info "Server bol spustený automaticky"
+    else
+        log_info "Pre spustenie servera:"
+        echo "  cd $PROJECT_DIR"
+        echo "  npm run dev          # Development mode"
+        echo "  npm start            # Production mode"
     fi
     echo
-    log_info "Dokumentácia: $PROJECT_DIR/instalacia/README.md"
+    log_info "Dokumentácia:"
+    echo "  $PROJECT_DIR/instalacia/README.md"
+    echo "  $PROJECT_DIR/instalacia/TROUBLESHOOTING.md"
     echo "============================================================================"
 }
 
@@ -369,6 +462,7 @@ main() {
     create_systemd_service
     configure_firewall
     install_nginx
+    start_server
     print_final_message
 }
 
