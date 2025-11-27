@@ -60,6 +60,7 @@ print_banner() {
 ║                                                              ║
 ║                    ESHOP INSTALLER                          ║
 ║              Automatická inštalácia z GitHubu               ║
+║                        Verzia: 0.0.2                         ║
 ║                                                              ║
 ╚══════════════════════════════════════════════════════════════╝
 EOF

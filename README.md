@@ -1,7 +1,10 @@
 # ESHOP - B2B E-commerce Platform
 
+**Verzia: 0.0.2** | [Changelog](CHANGELOG.md)
+
 Modulárny B2B eshop postavený na Next.js 14 s App Router a TypeScript.
 
+![Version](https://img.shields.io/badge/version-0.0.2-blue)
 [![Next.js](https://img.shields.io/badge/Next.js-14.1-black?logo=next.js)](https://nextjs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.3-blue?logo=typescript)](https://www.typescriptlang.org/)
 [![Prisma](https://img.shields.io/badge/Prisma-6.1-2D3748?logo=prisma)](https://www.prisma.io/)

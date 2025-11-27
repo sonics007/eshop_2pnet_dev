@@ -445,8 +445,15 @@ print_final_message() {
 
 # Hlavná inštalačná sekvencia
 main() {
+    # Načítanie verzie
+    VERSION="0.0.2"
+    if [ -f "../VERSION" ]; then
+        VERSION=$(cat ../VERSION 2>/dev/null || echo "0.0.2")
+    fi
+
     echo "============================================================================"
     echo "  ESHOP - Automatická inštalácia pre Debian 12"
+    echo "  Verzia: $VERSION"
     echo "============================================================================"
     echo
 
