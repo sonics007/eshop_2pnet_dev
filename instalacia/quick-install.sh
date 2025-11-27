@@ -56,3 +56,4 @@ echo "🚀 Spúšťam inštaláciu..."
 cd "$DIR/instalacia"
 chmod +x install.sh
 ./install.sh
+# Cache refresh št 27. nov 2025 11:17:11
