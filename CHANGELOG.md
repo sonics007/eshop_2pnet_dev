@@ -46,6 +46,14 @@ a tento projekt dodržiava [Semantic Versioning](https://semver.org/spec/v2.0.0.
     - Regenerácia Prisma clienta
     - Zobrazenie skutočných oprávnení pre diagnostiku
   - Kompletné riešenie "Unable to open the database file" bez manuálnej intervencie
+- 🐛 **HLAVNÁ PRÍČINA Error code 14: DATABASE_URL používala Windows cestu na Linux serveri**
+  - **V `setup_project()`:**
+    - Explicitné nastavenie `DATABASE_URL="file:./prisma/dev.db"` v .env
+    - Relatívna cesta funguje na Windows aj Linux
+    - Nastavuje sa vždy, aj keď .env už existuje
+  - **Problém:** .env mal `DATABASE_URL="file:C:/Users/.../prisma/dev.db"` (Windows cesta)
+  - **Server:** Beží na Linux v `/opt/eshop` → cesta neexistuje
+  - **Riešenie:** Relatívna cesta `./prisma/dev.db` funguje všade
 - 🐛 Chyba "getcwd: cannot access parent directories" pri curl inštalácii
 
 ## [0.0.2] - 2025-11-27

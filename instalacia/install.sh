@@ -128,9 +128,15 @@ setup_project() {
         JWT_SECRET=$(openssl rand -base64 32)
         sed -i "s|JWT_SECRET=.*|JWT_SECRET=$JWT_SECRET|g" .env
 
+        # Nastavenie DATABASE_URL na relatívnu cestu (funguje na Windows aj Linux)
+        sed -i "s|DATABASE_URL=.*|DATABASE_URL=\"file:./prisma/dev.db\"|g" .env
+
         log_success ".env súbor vytvorený"
     else
-        log_warning ".env súbor už existuje, preskakujem..."
+        log_warning ".env súbor už existuje, ale overujem DATABASE_URL..."
+        # Aj keď .env existuje, nastavíme správnu DATABASE_URL cestu
+        sed -i "s|DATABASE_URL=.*|DATABASE_URL=\"file:./prisma/dev.db\"|g" .env
+        log_success "DATABASE_URL nastavená na relatívnu cestu"
     fi
 
     log_success "Projekt nastavený"
