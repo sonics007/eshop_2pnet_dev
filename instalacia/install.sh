@@ -306,6 +306,22 @@ start_server() {
     else
         # Spustenie v development mode
         log_info "Spúšťam vývojový server..."
+
+        # KRITICKÉ: Nastavenie databázových oprávnení tesne pred spustením
+        log_info "Overujem databázové oprávnenia..."
+        if [ -f "prisma/dev.db" ]; then
+            chmod 666 "prisma/dev.db" 2>/dev/null || run_sudo chmod 666 "prisma/dev.db"
+            chmod 777 "prisma" 2>/dev/null || run_sudo chmod 777 "prisma"
+
+            # Zobrazenie skutočných oprávnení pre diagnostiku
+            log_info "Databázové oprávnenia:"
+            ls -la prisma/dev.db | awk '{print "  " $1 " " $3 ":" $4 " " $9}'
+            log_success "Oprávnenia nastavené"
+        else
+            log_error "Databáza prisma/dev.db neexistuje!"
+        fi
+
+        echo
         log_warning "Server beží v popredí. Pre zastavenie použite Ctrl+C"
         echo
 

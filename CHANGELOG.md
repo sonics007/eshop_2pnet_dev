@@ -26,7 +26,11 @@ a tento projekt dodržiava [Semantic Versioning](https://semver.org/spec/v2.0.0.
 
 ### Opravené
 - 🐛 Chyba pri vytváraní admin používateľa (chýbali parametre)
-- 🐛 Databázové oprávnenia - Prisma nemohol otvoriť databázu (Error code 14)
+- 🐛 **Databázové oprávnenia - Prisma Error code 14**
+  - Oprávnenia sa nastavujú tesne pred spustením servera v `start_server()`
+  - Automatická kontrola a oprava oprávnení (chmod 666 dev.db, chmod 777 prisma/)
+  - Zobrazenie skutočných oprávnení pre diagnostiku
+  - Oprava problému keď Node.js proces nemohol otvoriť databázu
 - 🐛 Chyba "getcwd: cannot access parent directories" pri curl inštalácii
 
 ## [0.0.2] - 2025-11-27
