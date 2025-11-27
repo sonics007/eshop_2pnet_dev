@@ -13,6 +13,13 @@ a tento projekt dodržiava [Semantic Versioning](https://semver.org/spec/v2.0.0.
   - Defaultné hodnoty pre rýchlu inštaláciu
   - Zobrazenie prihlasovacích údajov po vytvorení
   - Upozornenie na zmenu hesla
+- 🔧 **Diagnostický skript** `instalacia/fix-db-permissions.sh`
+  - Zastaví Node.js procesy
+  - Vyčistí Next.js cache (.next/)
+  - Odstráni SQLite lock súbory (dev.db-shm, dev.db-wal)
+  - Nastaví správne oprávnenia
+  - Test prístupu k databáze
+  - Regenerácia Prisma clienta
 
 ### Zmenené
 - 📝 Vylepšená funkcia `create_admin_user()` v install.sh
