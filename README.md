@@ -16,20 +16,30 @@ Modulárny B2B eshop postavený na Next.js 14 s App Router a TypeScript.
 - 🧾 **Faktúry** - PDF generovanie
 - 🎨 **Admin panel** - Konfigurácia vizuálu a obsahu
 
-## 🚀 Rýchla inštalácia - Debian 12
+## 🚀 Najrýchlejšia inštalácia - Debian 12
 
 ```bash
-# Stiahnuť projekt
-git clone https://github.com/sonics007/eshop_2pnet_dev.git
-cd eshop_2pnet_dev
+curl -sSL https://raw.githubusercontent.com/sonics007/eshop_2pnet_dev/main/instalacia/quick-install.sh | bash
+```
 
-# Automatická inštalácia
-cd instalacia
+**To je všetko!** Automaticky stiahne a nainštaluje všetko potrebné. ⏱️ ~5 minút
+
+### Alternatívne metódy inštalácie
+
+**Metóda 1: Git clone + automatická inštalácia**
+```bash
+git clone https://github.com/sonics007/eshop_2pnet_dev.git
+cd eshop_2pnet_dev/instalacia
 chmod +x install.sh
 ./install.sh
 ```
 
-**Detaily:** [instalacia/README.md](instalacia/README.md)
+**Metóda 2: Jeden príkaz (celý proces)**
+```bash
+curl -sSL https://raw.githubusercontent.com/sonics007/eshop_2pnet_dev/main/instalacia/install-from-github.sh | bash
+```
+
+**Podrobný návod:** [instalacia/INSTALL-FROM-GITHUB.md](instalacia/INSTALL-FROM-GITHUB.md)
 
 ## 💻 Lokálny vývoj
 
@@ -50,6 +60,7 @@ Aplikácia: http://localhost:3000
 - [CLAUDE.md](CLAUDE.md) - Projektová dokumentácia
 - [STRUCTURE.md](STRUCTURE.md) - Štruktúra projektu  
 - [instalacia/README.md](instalacia/README.md) - Inštalačný návod
+- [instalacia/INSTALL-FROM-GITHUB.md](instalacia/INSTALL-FROM-GITHUB.md) - Inštalácia z GitHubu
 
 ## 🛠️ Tech Stack
 
@@ -64,6 +75,20 @@ Modulárna architektúra v `lib/modules/`:
 - chat, products, orders, invoices
 - site (visual, links, menu)
 - users, logging, flexibee
+
+## 🔄 Aktualizácia a správa
+
+```bash
+# Aktualizácia na novú verziu
+cd /opt/eshop/instalacia
+./deploy.sh
+
+# Zálohovanie
+./backup.sh
+
+# Správa služby
+sudo systemctl start/stop/restart eshop
+```
 
 ## 📞 Podpora
 
