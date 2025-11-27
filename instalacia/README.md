@@ -15,8 +15,11 @@
 ### Minimálne systémové požiadavky
 - **OS**: Debian 12 (Bookworm)
 - **RAM**: 2GB (odporúčané 4GB+)
-- **Disk**: 5GB voľného miesta
+- **Disk**: **10GB voľného miesta** (minimálne 5GB)
 - **CPU**: 2 jadrá (odporúčané)
+
+> ⚠️ **Poznámka pre LXC kontajnery**: Odporúčaná veľkosť disku je **16-20 GB**.
+> Pri menšom priestore môže dôjsť k chybe "ENOSPC: no space left on device" počas `npm install`.
 
 ### Software
 Inštalačný skript automaticky nainštaluje:
@@ -359,6 +362,28 @@ sudo tail -f /var/log/nginx/error.log
 ---
 
 ## Riešenie problémov
+
+> 📖 **Detailný troubleshooting guide**: [TROUBLESHOOTING.md](TROUBLESHOOTING.md)
+
+### Najčastejšie problémy
+
+#### ❌ No space left on device (ENOSPC)
+
+Najčastejší problém pri inštalácii v LXC kontajneri.
+
+**Riešenie**:
+```bash
+# Na Proxmox hoste zväčšite disk kontajnera
+pct stop <CTID>
+pct resize <CTID> rootfs +8G
+pct start <CTID>
+```
+
+**Odporúčaná veľkosť disku**: 16-20 GB pre produkčné nasadenie.
+
+Viac info: [TROUBLESHOOTING.md#no-space-left-on-device](TROUBLESHOOTING.md#-chyba-no-space-left-on-device-enospc)
+
+---
 
 ### Server sa nespustí
 
