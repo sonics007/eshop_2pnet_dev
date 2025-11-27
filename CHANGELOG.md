@@ -18,6 +18,7 @@ a tento projekt dodržiava [Semantic Versioning](https://semver.org/spec/v2.0.0.
 - 📝 Vylepšená funkcia `create_admin_user()` v install.sh
 - 📝 Používateľsky prívetivejší inštalačný proces
 - 📝 Automatické nastavenie databázových oprávnení (chmod 666 dev.db, chmod 777 prisma/)
+- 🚀 **Server sa automaticky spúšťa po inštalácii** (predtým voliteľné)
 
 ### Opravené
 - 🐛 Chyba pri vytváraní admin používateľa (chýbali parametre)

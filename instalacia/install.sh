@@ -370,13 +370,10 @@ EOF
 # Spustenie servera
 start_server() {
     echo
-    log_info "Chcete spustiť server teraz? (y/n): "
-    read -n 1 -r
+    log_info "Spúšťam server automaticky po inštalácii..."
+    log_info "(Pre preskočenie použite Ctrl+C)"
+    sleep 2
     echo
-
-    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-        return
-    fi
 
     cd "$PROJECT_DIR"
 
