@@ -17,9 +17,12 @@ a tento projekt dodržiava [Semantic Versioning](https://semver.org/spec/v2.0.0.
 ### Zmenené
 - 📝 Vylepšená funkcia `create_admin_user()` v install.sh
 - 📝 Používateľsky prívetivejší inštalačný proces
+- 📝 Automatické nastavenie databázových oprávnení (chmod 666 dev.db, chmod 777 prisma/)
 
 ### Opravené
 - 🐛 Chyba pri vytváraní admin používateľa (chýbali parametre)
+- 🐛 Databázové oprávnenia - Prisma nemohol otvoriť databázu (Error code 14)
+- 🐛 Chyba "getcwd: cannot access parent directories" pri curl inštalácii
 
 ## [0.0.2] - 2025-11-27
 

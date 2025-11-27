@@ -163,6 +163,13 @@ setup_database() {
         log_success "Databázové migrácie dokončené"
     fi
 
+    # Nastavenie správnych oprávnení pre databázu
+    if [ -f "prisma/dev.db" ]; then
+        chmod 666 "prisma/dev.db"
+        chmod 777 "prisma"
+        log_success "Databázové oprávnenia nastavené"
+    fi
+
     # Seed databázy (voliteľné)
     read -p "Chcete naplniť databázu ukážkovými dátami? (y/n): " -n 1 -r
     echo
