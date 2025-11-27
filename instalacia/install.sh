@@ -190,6 +190,25 @@ create_admin_user() {
         return
     fi
 
+    # KRITICKÉ: Príprava databázy pred vytvorením admin používateľa
+    log_info "Pripravujem databázu..."
+
+    # Odstránenie SQLite lock súborov
+    if [ -f "prisma/dev.db-shm" ] || [ -f "prisma/dev.db-wal" ]; then
+        rm -f prisma/dev.db-shm prisma/dev.db-wal 2>/dev/null || true
+    fi
+
+    # Nastavenie oprávnení
+    if [ -f "prisma/dev.db" ]; then
+        chmod 666 "prisma/dev.db" 2>/dev/null || run_sudo chmod 666 "prisma/dev.db"
+        chmod 777 "prisma" 2>/dev/null || run_sudo chmod 777 "prisma"
+        chmod 755 . 2>/dev/null || run_sudo chmod 755 .
+    fi
+
+    # Regenerácia Prisma clienta
+    npx prisma generate >/dev/null 2>&1
+
+    echo
     # Defaultné hodnoty - automaticky použité
     ADMIN_EMAIL="admin@eshop.local"
     ADMIN_PASSWORD="Admin123!"
@@ -305,13 +324,33 @@ start_server() {
         fi
     else
         # Spustenie v development mode
-        log_info "Spúšťam vývojový server..."
+        log_info "Pripravujem vývojový server..."
+        echo
 
-        # KRITICKÉ: Nastavenie databázových oprávnení tesne pred spustením
+        # 1. Zastavenie všetkých Node.js procesov
+        log_info "Zastavujem staré Node.js procesy..."
+        pkill -9 node 2>/dev/null || true
+        sleep 1
+        log_success "Node.js procesy zastavené"
+
+        # 2. Vyčistenie Next.js cache (obsahuje starý Prisma client z Turbopacku)
+        log_info "Vyčisťujem Next.js cache..."
+        rm -rf .next 2>/dev/null || true
+        log_success "Cache vyčistený"
+
+        # 3. Odstránenie SQLite lock súborov
+        if [ -f "prisma/dev.db-shm" ] || [ -f "prisma/dev.db-wal" ]; then
+            log_info "Odstraňujem SQLite lock súbory..."
+            rm -f prisma/dev.db-shm prisma/dev.db-wal 2>/dev/null || true
+            log_success "Lock súbory odstránené"
+        fi
+
+        # 4. Nastavenie databázových oprávnení
         log_info "Overujem databázové oprávnenia..."
         if [ -f "prisma/dev.db" ]; then
             chmod 666 "prisma/dev.db" 2>/dev/null || run_sudo chmod 666 "prisma/dev.db"
             chmod 777 "prisma" 2>/dev/null || run_sudo chmod 777 "prisma"
+            chmod 755 . 2>/dev/null || run_sudo chmod 755 .
 
             # Zobrazenie skutočných oprávnení pre diagnostiku
             log_info "Databázové oprávnenia:"
@@ -320,6 +359,11 @@ start_server() {
         else
             log_error "Databáza prisma/dev.db neexistuje!"
         fi
+
+        # 5. Regenerácia Prisma clienta
+        log_info "Regenerujem Prisma client..."
+        npx prisma generate >/dev/null 2>&1
+        log_success "Prisma client regenerovaný"
 
         echo
         log_warning "Server beží v popredí. Pre zastavenie použite Ctrl+C"
