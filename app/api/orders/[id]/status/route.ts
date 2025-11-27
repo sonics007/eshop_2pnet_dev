@@ -2,11 +2,12 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { reverseStatus } from '@/lib/orderStatus';
 
-export async function PUT(request: Request, { params }: { params: { id: string } }) {
+export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const body = await request.json();
   try {
     const order = await prisma.order.update({
-      where: { externalId: params.id },
+      where: { externalId: id },
       data: {
         status: reverseStatus(body.status),
         history: {

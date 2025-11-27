@@ -31,11 +31,13 @@ const escapeXml = (value: string) =>
 const formatDate = (value: Date | string) =>
   value instanceof Date ? value.toISOString().slice(0, 10) : value;
 
-export async function GET(_: Request, { params }: { params: { invoiceNumber: string } }) {
+export async function GET(_: Request, { params }: { params: Promise<{ invoiceNumber: string }> }) {
   try {
+    // V Next.js 16+ je params Promise
+    const { invoiceNumber } = await params;
     const template = await readInvoiceTemplate();
     const dbInvoice = await prisma.invoice.findUnique({
-      where: { invoiceNumber: params.invoiceNumber },
+      where: { invoiceNumber },
       include: {
         order: {
           include: { items: true }
@@ -68,7 +70,7 @@ export async function GET(_: Request, { params }: { params: { invoiceNumber: str
           })) ?? []
       };
     } else {
-      const sampleInvoice = sampleInvoices.find((item) => item.invoiceNumber === params.invoiceNumber);
+      const sampleInvoice = sampleInvoices.find((item) => item.invoiceNumber === invoiceNumber);
       if (sampleInvoice) {
         const sampleOrder = sampleOrders.find((item) => item.id === sampleInvoice.orderId);
         invoice = {

@@ -1,6 +1,6 @@
 ﻿const nextConfig = {
-  // Vypnutie SWC minifikácie v dev mode
-  swcMinify: false,
+  // Turbopack konfigurácia pre Next.js 16+
+  turbopack: {},
 
   experimental: {
     // Optimalizácia pre Windows - menší cache

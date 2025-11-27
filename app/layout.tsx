@@ -8,14 +8,13 @@ import { AuthProvider } from '@/components/AuthContext';
 import { CartProvider } from '@/components/CartContext';
 
 // Lazy-load chat komponenty - načítajú sa až po hlavnom obsahu
+// V Next.js 16+ sa ssr: false už nepodporuje v Server Components
 const FloatingChatTrigger = dynamic(
-  () => import('@/components/FloatingChatTrigger').then(mod => ({ default: mod.FloatingChatTrigger })),
-  { ssr: false }
+  () => import('@/components/FloatingChatTrigger').then(mod => ({ default: mod.FloatingChatTrigger }))
 );
 
 const TawkToWidget = dynamic(
-  () => import('@/components/TawkToWidget'),
-  { ssr: false }
+  () => import('@/components/TawkToWidget')
 );
 
 const inter = Inter({

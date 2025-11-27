@@ -15,10 +15,11 @@ function buildWhereParam(id: string) {
   return { slug: id };
 }
 
-export async function GET(_: Request, { params }: { params: { id: string } }) {
+export async function GET(_: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     const record = await prisma.product.findFirst({
-      where: buildWhereParam(params.id),
+      where: buildWhereParam(id),
       include: { category: true, subCategory: true }
     });
     if (!record) {
@@ -31,11 +32,12 @@ export async function GET(_: Request, { params }: { params: { id: string } }) {
   }
 }
 
-export async function PUT(request: Request, { params }: { params: { id: string } }) {
+export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params;
   const payload = await request.json();
   try {
     const record = await prisma.product.update({
-      where: buildWhereParam(params.id),
+      where: buildWhereParam(id),
       data: {
         slug: payload.slug,
         name: payload.name,
@@ -70,10 +72,11 @@ export async function PUT(request: Request, { params }: { params: { id: string }
   }
 }
 
-export async function DELETE(_: Request, { params }: { params: { id: string } }) {
+export async function DELETE(_: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    const { id } = await params;
     await prisma.product.delete({
-      where: buildWhereParam(params.id)
+      where: buildWhereParam(id)
     });
     return NextResponse.json({ success: true });
   } catch (error) {
