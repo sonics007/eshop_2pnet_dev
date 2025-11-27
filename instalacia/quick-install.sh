@@ -15,6 +15,9 @@
 
 set -e
 
+# Presun do bezpečného adresára (ak sme v neexistujúcom)
+cd /tmp 2>/dev/null || cd /
+
 REPO="sonics007/eshop_2pnet_dev"
 DIR="/opt/eshop"
 
@@ -72,4 +75,4 @@ echo "🚀 Spúšťam inštaláciu..."
 cd "$DIR/instalacia"
 chmod +x install.sh
 ./install.sh
-# Cache refresh št 27. nov 2025 11:17:11
+# Cache refresh št 27. nov 2025 14:42:33

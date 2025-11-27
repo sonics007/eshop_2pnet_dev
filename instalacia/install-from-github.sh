@@ -15,6 +15,9 @@
 
 set -e
 
+# Presun do bezpečného adresára (ak sme v neexistujúcom)
+cd /tmp 2>/dev/null || cd /
+
 # Farby pre výstup
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -274,3 +277,4 @@ main() {
 
 # Spustenie
 main "$@"
+# Cache refresh št 27. nov 2025 14:42:33
