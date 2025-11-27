@@ -70,13 +70,22 @@ EOF
     echo
 }
 
-# Kontrola root
-check_not_root() {
+# Kontrola root - pre LXC kontajner je root OK
+check_root() {
     if [ "$EUID" -eq 0 ]; then
-        log_error "NEPOUŽÍVAJTE root alebo sudo!"
-        log_info "Spustite ako bežný používateľ: bash $0"
-        log_info "Skript sa sám spýta na sudo heslo, keď bude potrebné."
-        exit 1
+        log_warning "Inštalácia ako root (OK pre LXC kontajner)"
+        IS_ROOT=true
+    else
+        IS_ROOT=false
+    fi
+}
+
+# Funkcia pre sudo (preskočiť ak je root)
+run_sudo() {
+    if [ "$IS_ROOT" = true ]; then
+        "$@"
+    else
+        sudo "$@"
     fi
 }
 
@@ -109,10 +118,10 @@ install_prerequisites() {
     log_step "Inštalácia základných nástrojov"
 
     log_info "Aktualizujem zoznam balíčkov..."
-    sudo apt-get update -qq
+    run_sudo apt-get update -qq
 
     log_info "Inštalujem git a curl..."
-    sudo apt-get install -y git curl wget
+    run_sudo apt-get install -y git curl wget
 
     log_success "Základné nástroje nainštalované"
 }
@@ -128,7 +137,7 @@ download_project() {
         echo
         if [[ $REPLY =~ ^[Yy]$ ]]; then
             log_info "Odstráňujem starý adresár..."
-            sudo rm -rf "$INSTALL_DIR"
+            run_sudo rm -rf "$INSTALL_DIR"
         else
             log_error "Inštalácia zrušená"
             exit 1
@@ -139,16 +148,18 @@ download_project() {
     PARENT_DIR=$(dirname "$INSTALL_DIR")
     if [ ! -d "$PARENT_DIR" ]; then
         log_info "Vytváram adresár $PARENT_DIR..."
-        sudo mkdir -p "$PARENT_DIR"
+        run_sudo mkdir -p "$PARENT_DIR"
     fi
 
     # Stiahnutie projektu
     log_info "Klonovanie z https://github.com/$GITHUB_REPO..."
-    sudo git clone -b "$GITHUB_BRANCH" "https://github.com/$GITHUB_REPO.git" "$INSTALL_DIR"
+    run_sudo git clone -b "$GITHUB_BRANCH" "https://github.com/$GITHUB_REPO.git" "$INSTALL_DIR"
 
-    # Nastavenie vlastníctva
-    log_info "Nastavujem oprávnenia..."
-    sudo chown -R $USER:$USER "$INSTALL_DIR"
+    # Nastavenie vlastníctva (iba ak nie je root)
+    if [ "$IS_ROOT" = false ]; then
+        log_info "Nastavujem oprávnenia..."
+        sudo chown -R $USER:$USER "$INSTALL_DIR"
+    fi
 
     log_success "Projekt stiahnutý do $INSTALL_DIR"
 }
@@ -251,7 +262,7 @@ main() {
     fi
 
     # Spustenie krokov
-    check_not_root
+    check_root
     check_os
     install_prerequisites
     download_project

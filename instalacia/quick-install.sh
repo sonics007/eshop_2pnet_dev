@@ -23,17 +23,28 @@ echo "║          ESHOP - Rýchla inštalácia z GitHubu           ║"
 echo "╚══════════════════════════════════════════════════════════╝"
 echo
 
-# Kontrola root
+# Kontrola root - pre LXC kontajner je root OK
 if [ "$EUID" -eq 0 ]; then
-    echo "❌ NEPOUŽÍVAJTE root! Spustite ako bežný používateľ."
-    exit 1
+    echo "⚠️  Inštalácia ako root (OK pre LXC kontajner)"
+    IS_ROOT=true
+else
+    IS_ROOT=false
 fi
+
+# Funkcia pre sudo (preskočiť ak je root)
+run_sudo() {
+    if [ "$IS_ROOT" = true ]; then
+        "$@"
+    else
+        sudo "$@"
+    fi
+}
 
 # Inštalácia git
 if ! command -v git &> /dev/null; then
     echo "📦 Inštalujem git..."
-    sudo apt-get update -qq
-    sudo apt-get install -y git
+    run_sudo apt-get update -qq
+    run_sudo apt-get install -y git
 fi
 
 # Stiahnutie projektu
@@ -42,11 +53,15 @@ if [ -d "$DIR" ]; then
     echo "⚠️  Adresár $DIR už existuje!"
     read -p "Odstrániť a stiahnuť znova? (y/n): " -n 1 -r
     echo
-    [[ $REPLY =~ ^[Yy]$ ]] && sudo rm -rf "$DIR" || exit 1
+    [[ $REPLY =~ ^[Yy]$ ]] && run_sudo rm -rf "$DIR" || exit 1
 fi
 
-sudo git clone "https://github.com/$REPO.git" "$DIR"
-sudo chown -R $USER:$USER "$DIR"
+run_sudo git clone "https://github.com/$REPO.git" "$DIR"
+
+# Nastavenie vlastníctva (iba ak nie je root)
+if [ "$IS_ROOT" = false ]; then
+    sudo chown -R $USER:$USER "$DIR"
+fi
 
 echo "✅ Projekt stiahnutý"
 echo

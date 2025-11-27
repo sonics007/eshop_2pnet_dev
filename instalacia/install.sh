@@ -29,12 +29,22 @@ log_error() {
     echo -e "${RED}[ERROR]${NC} $1"
 }
 
-# Kontrola, či skript beží ako root
+# Kontrola root - pre LXC kontajner je root OK
 check_root() {
     if [ "$EUID" -eq 0 ]; then
-        log_error "Tento skript by NEMAL bežať ako root!"
-        log_info "Spustite ho ako bežný používateľ: ./install.sh"
-        exit 1
+        log_warning "Inštalácia ako root (OK pre LXC kontajner)"
+        IS_ROOT=true
+    else
+        IS_ROOT=false
+    fi
+}
+
+# Funkcia pre sudo (preskočiť ak je root)
+run_sudo() {
+    if [ "$IS_ROOT" = true ]; then
+        "$@"
+    else
+        sudo "$@"
     fi
 }
 
@@ -59,8 +69,8 @@ check_os() {
 install_system_dependencies() {
     log_info "Inštalujem systémové závislosti..."
 
-    sudo apt-get update
-    sudo apt-get install -y \
+    run_sudo apt-get update
+    run_sudo apt-get install -y \
         curl \
         wget \
         git \
@@ -87,8 +97,13 @@ install_nodejs() {
     log_info "Inštalujem Node.js 20.x..."
 
     # Pridanie NodeSource repository
-    curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
-    sudo apt-get install -y nodejs
+    if [ "$IS_ROOT" = true ]; then
+        curl -fsSL https://deb.nodesource.com/setup_20.x | bash -
+        apt-get install -y nodejs
+    else
+        curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+        sudo apt-get install -y nodejs
+    fi
 
     log_success "Node.js $(node -v) nainštalovaný"
     log_success "npm $(npm -v) nainštalovaný"
@@ -185,7 +200,7 @@ create_systemd_service() {
 
     log_info "Vytváram systemd službu..."
 
-    sudo tee "$SERVICE_FILE" > /dev/null <<EOF
+    run_sudo tee "$SERVICE_FILE" > /dev/null <<EOF
 [Unit]
 Description=ESHOP Next.js Application
 After=network.target
@@ -204,13 +219,19 @@ RestartSec=10
 WantedBy=multi-user.target
 EOF
 
-    sudo systemctl daemon-reload
-    sudo systemctl enable eshop.service
+    run_sudo systemctl daemon-reload
+    run_sudo systemctl enable eshop.service
 
     log_success "Systemd služba vytvorená a aktivovaná"
-    log_info "Použite: sudo systemctl start eshop    # Spustiť"
-    log_info "         sudo systemctl stop eshop     # Zastaviť"
-    log_info "         sudo systemctl status eshop   # Stav"
+    if [ "$IS_ROOT" = true ]; then
+        log_info "Použite: systemctl start eshop    # Spustiť"
+        log_info "         systemctl stop eshop     # Zastaviť"
+        log_info "         systemctl status eshop   # Stav"
+    else
+        log_info "Použite: sudo systemctl start eshop    # Spustiť"
+        log_info "         sudo systemctl stop eshop     # Zastaviť"
+        log_info "         sudo systemctl status eshop   # Stav"
+    fi
 }
 
 # Build produkčnej verzie
@@ -242,17 +263,21 @@ configure_firewall() {
 
     if ! command -v ufw &> /dev/null; then
         log_info "Inštalujem ufw..."
-        sudo apt-get install -y ufw
+        run_sudo apt-get install -y ufw
     fi
 
     log_info "Konfigurujem firewall..."
-    sudo ufw allow 22/tcp      # SSH
-    sudo ufw allow 80/tcp      # HTTP
-    sudo ufw allow 443/tcp     # HTTPS
-    sudo ufw allow 3000/tcp    # Next.js dev
+    run_sudo ufw allow 22/tcp      # SSH
+    run_sudo ufw allow 80/tcp      # HTTP
+    run_sudo ufw allow 443/tcp     # HTTPS
+    run_sudo ufw allow 3000/tcp    # Next.js dev
 
     log_warning "Firewall pravidlá pripravené, ale NEAKTIVOVANÉ"
-    log_info "Pre aktiváciu spustite: sudo ufw enable"
+    if [ "$IS_ROOT" = true ]; then
+        log_info "Pre aktiváciu spustite: ufw enable"
+    else
+        log_info "Pre aktiváciu spustite: sudo ufw enable"
+    fi
 }
 
 # Inštalácia nginx ako reverse proxy (voliteľné)
@@ -266,12 +291,12 @@ install_nginx() {
     fi
 
     log_info "Inštalujem nginx..."
-    sudo apt-get install -y nginx
+    run_sudo apt-get install -y nginx
 
     # Vytvorenie nginx konfigurácie
     NGINX_CONF="/etc/nginx/sites-available/eshop"
 
-    sudo tee "$NGINX_CONF" > /dev/null <<'EOF'
+    run_sudo tee "$NGINX_CONF" > /dev/null <<'EOF'
 server {
     listen 80;
     server_name _;
@@ -290,9 +315,9 @@ server {
 }
 EOF
 
-    sudo ln -sf "$NGINX_CONF" /etc/nginx/sites-enabled/eshop
-    sudo rm -f /etc/nginx/sites-enabled/default
-    sudo nginx -t && sudo systemctl restart nginx
+    run_sudo ln -sf "$NGINX_CONF" /etc/nginx/sites-enabled/eshop
+    run_sudo rm -f /etc/nginx/sites-enabled/default
+    run_sudo nginx -t && run_sudo systemctl restart nginx
 
     log_success "Nginx nainštalovaný a nakonfigurovaný"
 }
