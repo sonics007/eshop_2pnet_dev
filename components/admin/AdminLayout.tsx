@@ -3,14 +3,17 @@
 /**
  * ADMIN MODULE - Layout Component
  *
- * Modulárny layout pre admin panel s dynamickým menu z registry
+ * Modulárny layout pre admin panel s dynamickým menu z nastavení
  */
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { getAdminMenuSections, type AdminMenuSection } from '@/lib/modules';
+import { usePathname } from 'next/navigation';
 import { Footer } from '@/components/Footer';
 import { Navbar } from '@/components/Navbar';
+import { NotificationCenter } from '@/components/admin/NotificationCenter';
+import type { AdminMenuSettings, AdminMenuItem } from '@/lib/modules/site/pages/admin-menu/types';
+import { defaultAdminMenuSettings } from '@/lib/modules/site/pages/admin-menu/types';
 
 interface AdminLayoutProps {
   children: React.ReactNode;
@@ -19,9 +22,59 @@ interface AdminLayoutProps {
 }
 
 export function AdminLayout({ children, activePanel, onPanelChange }: AdminLayoutProps) {
-  const [menuSections] = useState<AdminMenuSection[]>(() => getAdminMenuSections());
+  const pathname = usePathname();
+  const [menuSettings, setMenuSettings] = useState<AdminMenuSettings>(defaultAdminMenuSettings);
+  const [menuLoading, setMenuLoading] = useState(true);
   const [openMenus, setOpenMenus] = useState<Record<string, boolean>>({});
+  const [openIssuesCount, setOpenIssuesCount] = useState<number>(0);
   const menuRefs = useRef<Record<string, HTMLDivElement | null>>({});
+
+  // Načítaj menu nastavenia z API
+  useEffect(() => {
+    async function loadMenuSettings() {
+      try {
+        const response = await fetch('/api/site/admin-menu', {
+          credentials: 'include'
+        });
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && data.data) {
+            setMenuSettings(injectNewsletterIntoSettings(data.data));
+          }
+        }
+        // 401 je očakávaný ak používateľ nie je prihlásený - ignoruj
+        // Použije sa defaultné menu
+      } catch {
+        // Sieťová chyba - pokračuj s default nastaveniami
+      } finally {
+        setMenuLoading(false);
+      }
+    }
+    loadMenuSettings();
+  }, []);
+
+  // Načítaj počet otvorených hlásení chýb
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
+    const loadIssuesCount = async () => {
+      try {
+        const response = await fetch('/api/issues', { cache: 'no-store' });
+        if (response.ok) {
+          const data = await response.json();
+          if (data.success && Array.isArray(data.data)) {
+            const openCount = data.data.filter((i: { status: string }) => i.status !== 'resolved').length;
+            setOpenIssuesCount(openCount);
+          }
+        }
+      } catch {
+        // ignore
+      } finally {
+        timer = setTimeout(loadIssuesCount, 60_000);
+      }
+    };
+    loadIssuesCount();
+    return () => clearTimeout(timer);
+  }, []);
 
   // Zatvor menu pri kliknutí mimo
   useEffect(() => {
@@ -38,55 +91,121 @@ export function AdminLayout({ children, activePanel, onPanelChange }: AdminLayou
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [openMenus]);
 
-  const toggleMenu = (moduleId: string) => {
+  const toggleMenu = (itemId: string) => {
     setOpenMenus(prev => {
-      // Zatvor ostatné menu
       const newState: Record<string, boolean> = {};
       Object.keys(prev).forEach(key => {
         newState[key] = false;
       });
-      newState[moduleId] = !prev[moduleId];
+      newState[itemId] = !prev[itemId];
       return newState;
     });
   };
 
-  const handlePanelClick = (panelId: string) => {
-    setOpenMenus({});
-    onPanelChange?.(panelId);
+  const isActiveItem = (item: AdminMenuItem): boolean => {
+    if (pathname === item.href) return true;
+    if (item.children?.some(child => pathname === child.href)) return true;
+    return false;
   };
 
-  const isPanelInSection = (section: AdminMenuSection, panelId?: string): boolean => {
-    if (!panelId) return false;
-    return section.panels.some(p => p.id === panelId);
-  };
+  const sortedItems = [...menuSettings.items]
+    .filter(item => item.enabled)
+    .sort((a, b) => a.order - b.order);
 
-  // Zoskup moduly do skupín pre lepšie zobrazenie
-  const moduleGroups = [
-    {
-      label: 'Administrácia',
-      modules: menuSections.filter(s => ['site-settings', 'logging'].includes(s.moduleId))
-    },
-    {
-      label: 'Používatelia',
-      modules: menuSections.filter(s => ['auth-customer', 'auth-admin'].includes(s.moduleId))
-    },
-    {
-      label: 'E-shop',
-      modules: menuSections.filter(s => ['products', 'orders', 'invoices'].includes(s.moduleId))
-    },
-    {
-      label: 'Komunikácia',
-      modules: menuSections.filter(s => ['chat'].includes(s.moduleId))
-    },
-    {
-      label: 'Integrácie',
-      modules: menuSections.filter(s => ['flexibee'].includes(s.moduleId))
+  const renderMenuItem = (item: AdminMenuItem, index: number) => {
+    const hasChildren = item.children && item.children.filter(c => c.enabled).length > 0;
+    const isActive = isActiveItem(item);
+    const isOpen = openMenus[item.id];
+    const sortedChildren = hasChildren
+      ? [...item.children!].filter(c => c.enabled).sort((a, b) => a.order - b.order)
+      : [];
+
+    const shouldShowBadge = openIssuesCount > 0;
+
+    if (hasChildren) {
+      // Položka s podmenu
+      return (
+        <div
+          key={item.id}
+          className="relative"
+          ref={el => { menuRefs.current[item.id] = el; }}
+        >
+          <button
+            type="button"
+            onClick={() => toggleMenu(item.id)}
+            className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+              isActive || isOpen
+                ? 'bg-slate-900 text-white'
+                : 'border border-slate-200 text-slate-700 hover:bg-slate-100'
+            }`}
+          >
+            <span className="inline-flex items-center gap-2">
+              <span className={item.id === 'dev' && shouldShowBadge ? 'text-rose-700' : ''}>{item.label}</span>
+              <span className="text-xs">▾</span>
+              {item.id === 'dev' && shouldShowBadge && (
+                <span className="inline-flex min-w-[24px] items-center justify-center rounded-full bg-rose-100 px-2 py-0.5 text-xs font-bold text-rose-700">
+                  {openIssuesCount}
+                </span>
+              )}
+            </span>
+          </button>
+          {isOpen && (
+            <div className="absolute left-0 top-full z-20 mt-2 w-56 rounded-2xl border border-slate-200 bg-white p-2 text-sm shadow-xl">
+              {sortedChildren.map(child => {
+                const isIssue = child.id === 'issues';
+                const isIssueOpen = isIssue && openIssuesCount > 0;
+                return (
+                  <Link
+                    key={child.id}
+                    href={child.href}
+                    className={`block w-full rounded-xl px-3 py-2 text-left transition ${
+                      pathname === child.href
+                        ? 'bg-slate-900 text-white'
+                        : isIssueOpen
+                          ? 'bg-rose-50 text-rose-700 font-semibold'
+                          : 'text-slate-700 hover:bg-slate-100'
+                    }`}
+                    onClick={() => setOpenMenus({})}
+                  >
+                    <span className="inline-flex items-center gap-2">
+                      <span>{child.label}</span>
+                      {isIssueOpen && (
+                        <span className="inline-flex min-w-[24px] items-center justify-center rounded-full bg-rose-100 px-2 py-0.5 text-xs font-bold text-rose-700">
+                          {openIssuesCount}
+                        </span>
+                      )}
+                    </span>
+                  </Link>
+                );
+              })}
+            </div>
+          )}
+        </div>
+      );
     }
-  ].filter(g => g.modules.length > 0);
+
+    // Jednoduchá položka bez podmenu
+    return (
+      <Link
+        key={item.id}
+        href={item.href}
+        className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+          isActive
+            ? 'bg-slate-900 text-white'
+            : 'border border-slate-200 text-slate-700 hover:bg-slate-100'
+        }`}
+      >
+        <span className="inline-flex items-center gap-2">
+          {item.label}
+        </span>
+      </Link>
+    );
+  };
 
   return (
     <div className="min-h-screen bg-slate-50">
       <Navbar />
+      <NotificationCenter />
 
       <main className="mx-auto max-w-[1200px] px-6 py-12">
         <h1 className="text-4xl font-semibold text-slate-900">Admin panel</h1>
@@ -94,135 +213,30 @@ export function AdminLayout({ children, activePanel, onPanelChange }: AdminLayou
           Administrácia obsahu, používateľov a nastavení
         </p>
 
-        {/* Modulárne menu */}
-        <div className="mt-6 flex flex-wrap gap-2">
-          {moduleGroups.map((group) => (
-            group.modules.length === 1 ? (
-              // Jeden modul v skupine - zobraz priamo
-              <div
-                key={group.modules[0].moduleId}
-                className="relative"
-                ref={el => { menuRefs.current[group.modules[0].moduleId] = el; }}
-              >
-                {group.modules[0].panels.length === 1 && group.modules[0].panels[0].route ? (
-                  <Link
-                    href={group.modules[0].panels[0].route}
-                    className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                      isPanelInSection(group.modules[0], activePanel)
-                        ? 'bg-slate-900 text-white'
-                        : 'border border-slate-200 text-slate-700 hover:bg-slate-100'
-                    }`}
-                  >
-                    {group.modules[0].moduleName}
-                  </Link>
-                ) : (
-                  <>
-                    <button
-                      type="button"
-                      onClick={() => toggleMenu(group.modules[0].moduleId)}
-                      className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                        isPanelInSection(group.modules[0], activePanel) || openMenus[group.modules[0].moduleId]
-                          ? 'bg-slate-900 text-white'
-                          : 'border border-slate-200 text-slate-700 hover:bg-slate-100'
-                      }`}
-                    >
-                      {group.modules[0].moduleName}
-                    </button>
-                    {openMenus[group.modules[0].moduleId] && (
-                      <div className="absolute left-0 top-full z-20 mt-2 w-56 rounded-2xl border border-slate-200 bg-white p-2 text-sm shadow-xl">
-                        {group.modules[0].panels.map(panel => (
-                          panel.route ? (
-                            <Link
-                              key={panel.id}
-                              href={panel.route}
-                              className="block w-full rounded-xl px-3 py-2 text-left text-slate-700 hover:bg-slate-100"
-                              onClick={() => setOpenMenus({})}
-                            >
-                              {panel.label}
-                              {panel.description && (
-                                <span className="block text-xs text-slate-500">{panel.description}</span>
-                              )}
-                            </Link>
-                          ) : (
-                            <button
-                              key={panel.id}
-                              onClick={() => handlePanelClick(panel.id)}
-                              className={`block w-full rounded-xl px-3 py-2 text-left ${
-                                activePanel === panel.id
-                                  ? 'bg-slate-900 text-white'
-                                  : 'text-slate-700 hover:bg-slate-100'
-                              }`}
-                            >
-                              {panel.label}
-                              {panel.description && (
-                                <span className={`block text-xs ${activePanel === panel.id ? 'text-slate-300' : 'text-slate-500'}`}>
-                                  {panel.description}
-                                </span>
-                              )}
-                            </button>
-                          )
-                        ))}
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-            ) : (
-              // Viac modulov v skupine - zobraz dropdown
-              <div
-                key={group.label}
-                className="relative"
-                ref={el => { menuRefs.current[group.label] = el; }}
-              >
-                <button
-                  type="button"
-                  onClick={() => toggleMenu(group.label)}
-                  className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
-                    group.modules.some(m => isPanelInSection(m, activePanel)) || openMenus[group.label]
-                      ? 'bg-slate-900 text-white'
-                      : 'border border-slate-200 text-slate-700 hover:bg-slate-100'
-                  }`}
-                >
-                  {group.label}
-                </button>
-                {openMenus[group.label] && (
-                  <div className="absolute left-0 top-full z-20 mt-2 w-64 rounded-2xl border border-slate-200 bg-white p-2 text-sm shadow-xl">
-                    {group.modules.map(module => (
-                      <div key={module.moduleId} className="mb-2 last:mb-0">
-                        <p className="px-3 py-1 text-xs font-semibold uppercase tracking-wider text-slate-400">
-                          {module.moduleName}
-                        </p>
-                        {module.panels.map(panel => (
-                          panel.route ? (
-                            <Link
-                              key={panel.id}
-                              href={panel.route}
-                              className="mt-1 block w-full rounded-xl px-3 py-2 text-left text-slate-700 hover:bg-slate-100"
-                              onClick={() => setOpenMenus({})}
-                            >
-                              {panel.label}
-                            </Link>
-                          ) : (
-                            <button
-                              key={panel.id}
-                              onClick={() => handlePanelClick(panel.id)}
-                              className={`mt-1 block w-full rounded-xl px-3 py-2 text-left ${
-                                activePanel === panel.id
-                                  ? 'bg-slate-900 text-white'
-                                  : 'text-slate-700 hover:bg-slate-100'
-                              }`}
-                            >
-                              {panel.label}
-                            </button>
-                          )
-                        ))}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )
-          ))}
+        {/* Tlačidlo späť - zobrazí sa na podstránkach */}
+        {pathname !== '/admin' && (
+          <div className="mt-6">
+            <Link
+              href="/admin"
+              className="inline-flex items-center gap-2 rounded-full border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition hover:bg-slate-100"
+            >
+              <span>←</span>
+              <span>Späť</span>
+            </Link>
+          </div>
+        )}
+
+        {/* Dynamické menu z nastavení */}
+        <div className={`${pathname !== '/admin' ? 'mt-4' : 'mt-6'} flex flex-wrap gap-2`}>
+          {menuLoading ? (
+            <div className="flex gap-2">
+              {[1, 2, 3, 4, 5].map(i => (
+                <div key={i} className="h-9 w-24 animate-pulse rounded-full bg-slate-200" />
+              ))}
+            </div>
+          ) : (
+            sortedItems.map((item, index) => renderMenuItem(item, index))
+          )}
         </div>
 
         {/* Content area */}
@@ -231,7 +245,33 @@ export function AdminLayout({ children, activePanel, onPanelChange }: AdminLayou
         </div>
       </main>
 
-      <Footer />
+      {/* Admin nepotrebuje komerčný footer, nechávame čistý spodok */}
     </div>
   );
+}
+
+function injectNewsletterIntoSettings(settings: AdminMenuSettings): AdminMenuSettings {
+  const clone: AdminMenuSettings = JSON.parse(JSON.stringify(settings));
+  const settingsIndex = clone.items.findIndex((i) => i.id === 'settings');
+  if (settingsIndex === -1) return clone;
+  const settingsItem = clone.items[settingsIndex];
+  const hasNewsletter =
+    settingsItem.children?.some((c) => c.id === 'newsletters') ?? false;
+  if (!hasNewsletter) {
+    const child = {
+      id: 'newsletters',
+      label: 'Newsletter',
+      href: '/admin/newsletters',
+      icon: 'send',
+      enabled: true,
+      order: 4.5,
+      description: 'Tvorba a odosielanie newsletterov'
+    };
+    settingsItem.children = settingsItem.children
+      ? [...settingsItem.children, child]
+      : [child];
+    settingsItem.children = settingsItem.children.sort((a, b) => a.order - b.order);
+  }
+  clone.items[settingsIndex] = settingsItem;
+  return clone;
 }

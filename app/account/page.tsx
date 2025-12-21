@@ -1,17 +1,18 @@
 'use client';
 
 import Image from 'next/image';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Footer } from '@/components/Footer';
 import { Navbar } from '@/components/Navbar';
-import { useAuth } from '@/components/AuthContext';
+import { useCustomerAuth } from '@/lib/modules/auth/customer/context';
+import type { AdminOrder, InvoiceRecord } from '@/types/orders';
+import { orderStatusLabels } from '@/types/orders';
 
-const CAPTCHA_CODE = '2PN24';
-const LOGIN_OTP_CODE = '246810';
+const CAPTCHA_TEXT = '8N2P5';
 
 export default function AccountPage() {
-  const { user, isAuthenticated, login, logout } = useAuth();
-  const CAPTCHA_TEXT = '8N2P5';
+  const { user, isAuthenticated, isLoading, login, register, logout, updateProfile } = useCustomerAuth();
+
   const captchaSvg = encodeURIComponent(
     `<svg xmlns="http://www.w3.org/2000/svg" width="160" height="48">
       <rect width="160" height="48" fill="#0b1f3a"/>
@@ -20,12 +21,11 @@ export default function AccountPage() {
       <line x1="30" y1="40" x2="140" y2="8" stroke="#ffffff" stroke-width="1" />
     </svg>`
   );
+
   const [loginState, setLoginState] = useState({
     email: '',
     password: '',
-    captcha: '',
-    otp: '',
-    require2fa: false
+    captcha: ''
   });
   const [registerState, setRegisterState] = useState({
     email: '',
@@ -35,378 +35,644 @@ export default function AccountPage() {
     ico: '',
     dic: '',
     vatId: '',
-    captcha: '',
-    role: 'user',
-    twoFactorEnabled: false
+    phone: '',
+    street: '',
+    city: '',
+    zip: '',
+    country: 'Slovensko',
+    captcha: ''
   });
   const [resetState, setResetState] = useState({ email: '', captcha: '' });
-  const [messages, setMessages] = useState<{ login?: string; register?: string; reset?: string }>({});
+  const [messages, setMessages] = useState<{ login?: string; register?: string; reset?: string; profile?: string }>({});
   const [showRegister, setShowRegister] = useState(false);
   const [showReset, setShowReset] = useState(false);
-  const [showOtpStep, setShowOtpStep] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [orders, setOrders] = useState<AdminOrder[]>([]);
+  const [invoices, setInvoices] = useState<InvoiceRecord[]>([]);
+  const [loadingData, setLoadingData] = useState(false);
 
-  const handleLogin = (event: React.FormEvent) => {
-    event.preventDefault();
-    if (showOtpStep) {
-      if (loginState.otp !== LOGIN_OTP_CODE) {
-        setMessages((prev) => ({ ...prev, login: 'Neplatný 2FA kód.' }));
-        return;
-      }
-      login({
-        companyName: 'Prihlásený klient',
-        ico: '00000000',
-        dic: 'SK0000000000',
-        email: loginState.email,
-        role: loginState.email.toLowerCase().includes('admin') ? 'admin' : 'user',
-        twoFactorEnabled: loginState.require2fa
+  // Editacia profilu
+  const [editMode, setEditMode] = useState(false);
+  const [profileData, setProfileData] = useState({
+    companyName: '',
+    phone: '',
+    street: '',
+    city: '',
+    zip: '',
+    country: 'Slovensko',
+    newPassword: ''
+  });
+
+  // Synchronizacia profileData s user
+  useEffect(() => {
+    if (user && !editMode) {
+      setProfileData({
+        companyName: user.companyName || '',
+        phone: user.phone || '',
+        street: user.street || '',
+        city: user.city || '',
+        zip: user.zip || '',
+        country: user.country || 'Slovensko',
+        newPassword: ''
       });
-      setLoginState({ email: '', password: '', captcha: '', otp: '', require2fa: loginState.require2fa });
-      setShowOtpStep(false);
-      setMessages((prev) => ({ ...prev, login: 'Prihlásenie prebehlo úspešne.' }));
-      return;
     }
+  }, [user, editMode]);
+
+  // Načítaj objednávky a faktúry pre prihláseného
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    setLoadingData(true);
+    Promise.all([
+      fetch('/api/account/orders').then((res) => res.json()).catch(() => ({ success: false, data: [] })),
+      fetch('/api/account/invoices').then((res) => res.json()).catch(() => ({ success: false, data: [] }))
+    ])
+      .then(([ordersPayload, invoicesPayload]) => {
+        if (ordersPayload.success && Array.isArray(ordersPayload.data)) setOrders(ordersPayload.data);
+        if (invoicesPayload.success && Array.isArray(invoicesPayload.data)) setInvoices(invoicesPayload.data);
+      })
+      .finally(() => setLoadingData(false));
+  }, [isAuthenticated, user?.email]);
+
+  const handleLogin = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setMessages({});
 
     if (!loginState.email || !loginState.password) {
-      setMessages((prev) => ({ ...prev, login: 'Zadajte e-mail aj heslo.' }));
+      setMessages({ login: 'Zadajte e-mail aj heslo.' });
       return;
     }
     if (loginState.captcha !== CAPTCHA_TEXT) {
-      setMessages((prev) => ({ ...prev, login: 'Captcha nesedí. Skúste to znova.' }));
+      setMessages({ login: 'Captcha nesedi. Skuste to znova.' });
       return;
     }
 
-    if (loginState.require2fa) {
-      setShowOtpStep(true);
-      setMessages((prev) => ({
-        ...prev,
-        login: 'Na váš e-mail sme poslali 2FA kód (simulácia). Zadajte ho pre dokončenie prihlásenia.'
-      }));
-      return;
-    }
-
-    login({
-      companyName: 'Prihlásený klient',
-      ico: '00000000',
-      dic: 'SK0000000000',
+    setIsSubmitting(true);
+    const result = await login({
       email: loginState.email,
-      role: loginState.email.toLowerCase().includes('admin') ? 'admin' : 'user',
-      twoFactorEnabled: false
+      password: loginState.password
     });
-    setLoginState({ email: '', password: '', captcha: '', otp: '', require2fa: false });
-    setMessages((prev) => ({ ...prev, login: 'Prihlásenie prebehlo úspešne.' }));
+    setIsSubmitting(false);
+
+    if (result.success) {
+      setLoginState({ email: '', password: '', captcha: '' });
+      setMessages({ login: 'Prihlasenie prebehlo uspesne.' });
+    } else {
+      setMessages({ login: result.error || 'Prihlasenie zlyhalo.' });
+    }
   };
 
-  const handleRegister = (event: React.FormEvent) => {
+  const handleRegister = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (registerState.captcha !== CAPTCHA_CODE) {
-      setMessages((prev) => ({ ...prev, register: 'Captcha nesedí. Zadajte bezpečnostný kód správne.' }));
+    setMessages({});
+
+    if (registerState.captcha !== CAPTCHA_TEXT) {
+      setMessages({ register: 'Captcha nesedi. Zadajte bezpecnostny kod spravne.' });
       return;
     }
     if (registerState.password !== registerState.confirmPassword) {
-      setMessages((prev) => ({ ...prev, register: 'Heslá sa nezhodujú.' }));
+      setMessages({ register: 'Hesla sa nezhoduju.' });
       return;
     }
-    login({
+    if (!registerState.email || !registerState.password || !registerState.companyName) {
+      setMessages({ register: 'Vyplnte vsetky povinne polia.' });
+      return;
+    }
+
+    setIsSubmitting(true);
+    const result = await register({
+      email: registerState.email,
+      password: registerState.password,
       companyName: registerState.companyName,
       ico: registerState.ico,
       dic: registerState.dic,
-      vatId: registerState.vatId,
-      email: registerState.email,
-      role: registerState.role === 'admin' ? 'admin' : 'user',
-      twoFactorEnabled: registerState.twoFactorEnabled
+      vatId: registerState.vatId || undefined,
+      phone: registerState.phone || undefined,
+      street: registerState.street || undefined,
+      city: registerState.city || undefined,
+      zip: registerState.zip || undefined,
+      country: registerState.country || undefined
     });
-    setMessages((prev) => ({ ...prev, register: 'Účet bol vytvorený a ste prihlásený.' }));
+    setIsSubmitting(false);
+
+    if (result.success) {
+      setMessages({ register: 'Ucet bol vytvoreny a ste prihlaseny.' });
+      setShowRegister(false);
+    } else {
+      setMessages({ register: result.error || 'Registracia zlyhala.' });
+    }
   };
 
-  const handleReset = (event: React.FormEvent) => {
+  const handleReset = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (resetState.captcha !== CAPTCHA_CODE) {
-      setMessages((prev) => ({ ...prev, reset: 'Captcha overenie zlyhalo.' }));
+    if (resetState.captcha !== CAPTCHA_TEXT) {
+      setMessages({ reset: 'Captcha overenie zlyhalo.' });
       return;
     }
-    setMessages((prev) => ({
-      ...prev,
-      reset:
-        resetState.email.trim().length > 0
-          ? `Odkaz na obnovu hesla sme poslali na ${resetState.email}.`
-          : 'Odkaz na obnovu hesla bol odoslaný (simulácia).'
-    }));
+    if (!resetState.email) {
+      setMessages({ reset: 'Zadajte email.' });
+      return;
+    }
+    try {
+      const res = await fetch('/api/auth/customer/reset', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: resetState.email })
+      });
+      const data = await res.json();
+      if (data.success) {
+        setMessages({ reset: data.message || 'Email na obnovu hesla bol odoslaný.' });
+      } else {
+        setMessages({ reset: data.error || 'Odoslanie zlyhalo.' });
+      }
+    } catch (error) {
+      setMessages({ reset: 'Chyba pripojenia.' });
+    }
   };
 
-  const sendInstantReset = () => {
-    if (!loginState.email) {
-      setMessages((prev) => ({ ...prev, login: 'Najprv zadajte e-mail pre prihlásenie.' }));
-      return;
+  const handleUpdateProfile = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setMessages({});
+
+    setIsSubmitting(true);
+    const updateData: Record<string, string | undefined> = {
+      companyName: profileData.companyName,
+      phone: profileData.phone || undefined,
+      street: profileData.street || undefined,
+      city: profileData.city || undefined,
+      zip: profileData.zip || undefined,
+      country: profileData.country || undefined
+    };
+
+    if (profileData.newPassword) {
+      updateData.password = profileData.newPassword;
     }
-    setMessages((prev) => ({
-      ...prev,
-      login:
-        'Simulácia: na zadaný e-mail sme poslali okamžitý link na obnovu hesla. Pri ostrej prevádzke sa odošle reálna správa.'
-    }));
-    setShowReset(true);
-    setResetState((prev) => ({ ...prev, email: loginState.email }));
+
+    const result = await updateProfile(updateData);
+    setIsSubmitting(false);
+
+    if (result.success) {
+      setMessages({ profile: 'Profil bol aktualizovany.' });
+      setEditMode(false);
+      setProfileData(prev => ({ ...prev, newPassword: '' }));
+    } else {
+      setMessages({ profile: result.error || 'Aktualizacia zlyhala.' });
+    }
   };
+
+  if (isLoading) {
+    return (
+      <div className="bg-slate-50 min-h-screen">
+        <Navbar />
+        <main className="mx-auto max-w-5xl px-6 py-16">
+          <p className="text-slate-500">Nacitavam...</p>
+        </main>
+        <Footer />
+      </div>
+    );
+  }
 
   return (
     <div className="bg-slate-50">
       <Navbar />
       <main className="mx-auto max-w-5xl px-6 py-16">
-        <h1 className="text-4xl font-semibold text-slate-900">Osobný účet</h1>
-        <p className="mt-2 text-xs text-amber-600">Demo režim – údaje sa zatiaľ ukladajú len lokálne v prehliadači (simulácia prihlásenia).</p>
+        <h1 className="text-4xl font-semibold text-slate-900">Osobny ucet</h1>
 
         {isAuthenticated && user && (
           <div className="mt-10 rounded-3xl border border-emerald-200 bg-white p-6 shadow-card">
-            <p className="text-sm uppercase tracking-[0.3em] text-emerald-500">Prihlásený používateľ</p>
-            <p className="mt-3 text-xl font-semibold text-slate-900">{user.companyName}</p>
-            <p className="text-sm text-slate-500">IČO {user.ico} · DIČ {user.dic}</p>
-            {user.vatId && <p className="text-sm text-slate-500">IČ DPH {user.vatId}</p>}
-            <p className="text-sm text-slate-500">E-mail {user.email}</p>
-            <p className="text-sm text-slate-500">
-              Rola: {user.role === 'admin' ? 'Administrátor' : 'Bežný používateľ'} · 2FA{' '}
-              {user.twoFactorEnabled ? 'zapnuté' : 'vypnuté'}
-            </p>
-            <div className="mt-4 flex gap-4">
-              <button
-                type="button"
-                className="rounded-full border border-slate-900 px-6 py-2 text-sm font-semibold text-slate-900"
-                onClick={logout}
-              >
-                Odhlásiť sa
-              </button>
-            </div>
-            <p className="mt-3 text-xs text-slate-500">
-              Platby prebiehajú formou faktúry a detailný stav objednávok nájdete po prihlásení v sekcii Správa
-              objednávok.
-            </p>
+            <p className="text-sm uppercase tracking-[0.3em] text-emerald-500">Prihlaseny pouzivatel</p>
+
+            {!editMode ? (
+              <>
+                <p className="mt-3 text-xl font-semibold text-slate-900">{user.companyName}</p>
+                <p className="text-sm text-slate-500">E-mail: {user.email}</p>
+                {user.ico && <p className="text-sm text-slate-500">ICO: {user.ico}</p>}
+                {user.dic && <p className="text-sm text-slate-500">DIC: {user.dic}</p>}
+                {user.vatId && <p className="text-sm text-slate-500">IC DPH: {user.vatId}</p>}
+                {user.phone && <p className="text-sm text-slate-500">Telefon: {user.phone}</p>}
+                {(user.street || user.city) && (
+                  <p className="text-sm text-slate-500">
+                    Adresa: {[user.street, user.zip, user.city, user.country].filter(Boolean).join(', ')}
+                  </p>
+                )}
+                <div className="mt-4 flex gap-4">
+                  <button
+                    type="button"
+                    className="rounded-full border border-slate-900 px-6 py-2 text-sm font-semibold text-slate-900"
+                    onClick={() => setEditMode(true)}
+                  >
+                    Upravit profil
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-full border border-slate-300 px-6 py-2 text-sm font-semibold text-slate-600"
+                    onClick={logout}
+                  >
+                    Odhlasit sa
+                  </button>
+                </div>
+                {messages.profile && (
+                  <p className={`mt-3 text-xs ${messages.profile.includes('zlyhala') ? 'text-red-600' : 'text-emerald-600'}`}>
+                    {messages.profile}
+                  </p>
+                )}
+              </>
+            ) : (
+              <form onSubmit={handleUpdateProfile} className="mt-4 space-y-4">
+                <input
+                  placeholder="Nazov spolocnosti"
+                  required
+                  value={profileData.companyName}
+                  onChange={(e) => setProfileData({ ...profileData, companyName: e.target.value })}
+                  className="w-full rounded-2xl border border-slate-200 px-4 py-3 focus:border-slate-900 focus:outline-none"
+                />
+                <input
+                  placeholder="Telefon"
+                  value={profileData.phone}
+                  onChange={(e) => setProfileData({ ...profileData, phone: e.target.value })}
+                  className="w-full rounded-2xl border border-slate-200 px-4 py-3 focus:border-slate-900 focus:outline-none"
+                />
+                <input
+                  placeholder="Ulica a cislo"
+                  value={profileData.street}
+                  onChange={(e) => setProfileData({ ...profileData, street: e.target.value })}
+                  className="w-full rounded-2xl border border-slate-200 px-4 py-3 focus:border-slate-900 focus:outline-none"
+                />
+                <div className="grid gap-4 md:grid-cols-3">
+                  <input
+                    placeholder="PSC"
+                    value={profileData.zip}
+                    onChange={(e) => setProfileData({ ...profileData, zip: e.target.value })}
+                    className="rounded-2xl border border-slate-200 px-4 py-3 focus:border-slate-900 focus:outline-none"
+                  />
+                  <input
+                    placeholder="Mesto"
+                    value={profileData.city}
+                    onChange={(e) => setProfileData({ ...profileData, city: e.target.value })}
+                    className="rounded-2xl border border-slate-200 px-4 py-3 focus:border-slate-900 focus:outline-none"
+                  />
+                  <input
+                    placeholder="Krajina"
+                    value={profileData.country}
+                    onChange={(e) => setProfileData({ ...profileData, country: e.target.value })}
+                    className="rounded-2xl border border-slate-200 px-4 py-3 focus:border-slate-900 focus:outline-none"
+                  />
+                </div>
+                <input
+                  type="password"
+                  placeholder="Nove heslo (nechajte prazdne ak nechcete menit)"
+                  value={profileData.newPassword}
+                  onChange={(e) => setProfileData({ ...profileData, newPassword: e.target.value })}
+                  className="w-full rounded-2xl border border-slate-200 px-4 py-3 focus:border-slate-900 focus:outline-none"
+                />
+                <div className="flex gap-4">
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="rounded-full bg-brand-accent px-6 py-2 text-sm font-semibold text-slate-900 disabled:opacity-50"
+                  >
+                    {isSubmitting ? 'Ukladam...' : 'Ulozit zmeny'}
+                  </button>
+                  <button
+                    type="button"
+                    className="rounded-full border border-slate-300 px-6 py-2 text-sm font-semibold text-slate-600"
+                    onClick={() => setEditMode(false)}
+                  >
+                    Zrusit
+                  </button>
+                </div>
+                {messages.profile && (
+                  <p className={`text-xs ${messages.profile.includes('zlyhala') ? 'text-red-600' : 'text-emerald-600'}`}>
+                    {messages.profile}
+                  </p>
+                )}
+              </form>
+            )}
           </div>
         )}
 
-        <div className="mt-10 space-y-6">
-          <form onSubmit={handleLogin} className="space-y-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-card">
-            <p className="text-lg font-semibold text-slate-900">Prihlásenie</p>
-            <input
-              type="email"
-              placeholder="E-mail"
-              required
-              value={loginState.email}
-              onChange={(event) => setLoginState({ ...loginState, email: event.target.value })}
-              className="w-full rounded-2xl border border-slate-200 px-4 py-3 focus:border-slate-900 focus:outline-none"
-            />
-            <input
-              type="password"
-              placeholder="Heslo"
-              required
-              value={loginState.password}
-              onChange={(event) => setLoginState({ ...loginState, password: event.target.value })}
-              className="w-full rounded-2xl border border-slate-200 px-4 py-3 focus:border-slate-900 focus:outline-none"
-            />
-            <div>
-              <p className="text-xs font-semibold text-slate-500">Captcha bezpečnostný kód</p>
-              <div className="mt-2 flex items-center gap-4 rounded-2xl border border-slate-200 p-3">
-                <Image
-                  src={`data:image/svg+xml;utf8,${captchaSvg}`}
-                  alt="Captcha"
-                  width={160}
-                  height={48}
-                  className="h-10 w-32 rounded-md border border-slate-100 bg-slate-900"
-                />
-                <input
-                  placeholder="Zadajte kód"
-                  value={loginState.captcha}
-                  onChange={(event) => setLoginState({ ...loginState, captcha: event.target.value.toUpperCase() })}
-                  className="flex-1 rounded-2xl border border-slate-200 px-4 py-2 text-sm focus:border-slate-900 focus:outline-none"
-                />
+        {isAuthenticated && (
+          <div className="mt-10 grid gap-6 lg:grid-cols-2">
+            <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-card">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Objednávky</p>
+                  <h2 className="text-lg font-semibold text-slate-900">Moje objednávky</h2>
+                  <p className="text-sm text-slate-500">Aktuálny stav a prehľad položiek.</p>
+                </div>
+                {loadingData && <span className="text-xs text-slate-500">Načítavam…</span>}
               </div>
-            </div>
-            {showOtpStep && (
+              <div className="mt-4 space-y-3">
+                {orders.length === 0 ? (
+                  <p className="text-sm text-slate-500">Zatiaľ nemáte žiadne objednávky.</p>
+                ) : (
+                  orders.map((order) => {
+                    const created = order.history?.[0]?.timestamp
+                      ? new Date(order.history[0].timestamp).toLocaleString('sk-SK')
+                      : '—';
+                    const statusLabel = orderStatusLabels[order.status] ?? order.status;
+                    const hasInvoice = order.invoiceNumber && order.invoiceNumber !== '—';
+                    return (
+                      <div key={order.id} className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Objednávka</p>
+                            <p className="text-base font-semibold text-slate-900">{order.id}</p>
+                            <p className="text-xs text-slate-500">Vystavená: {created}</p>
+                          </div>
+                          <div className="text-right">
+                            <span className="rounded-full bg-slate-900 px-3 py-1 text-xs font-semibold text-white">
+                              {statusLabel}
+                            </span>
+                            <p className="text-sm text-slate-500 mt-1">{order.paymentMethod}</p>
+                            <p className="text-sm text-slate-500">{hasInvoice ? 'Fakturované' : 'Čaká na faktúru'}</p>
+                          </div>
+                        </div>
+                        <ul className="mt-3 space-y-1 text-sm text-slate-600">
+                          {order.items.map((item) => (
+                            <li key={item.name}>
+                              {item.name} × {item.quantity} — {item.price} €
+                            </li>
+                          ))}
+                        </ul>
+                        <p className="mt-2 text-right text-sm font-semibold text-slate-900">
+                          Celkom: {order.total.toLocaleString('sk-SK')} €
+                        </p>
+                      </div>
+                    );
+                  })
+                )}
+              </div>
+            </section>
+
+            <section className="rounded-3xl border border-slate-200 bg-white p-6 shadow-card">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Faktúry</p>
+                  <h2 className="text-lg font-semibold text-slate-900">Moje faktúry</h2>
+                  <p className="text-sm text-slate-500">Stiahnite si PDF alebo skontrolujte splatnosť.</p>
+                </div>
+                {loadingData && <span className="text-xs text-slate-500">Načítavam…</span>}
+              </div>
+              <div className="mt-4 space-y-3">
+                {invoices.length === 0 ? (
+                  <p className="text-sm text-slate-500">Zatiaľ nemáte žiadne faktúry.</p>
+                ) : (
+                  invoices.map((inv) => (
+                    <div key={inv.id} className="rounded-2xl border border-slate-100 bg-slate-50 p-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <p className="text-xs uppercase tracking-[0.2em] text-slate-400">Faktúra</p>
+                          <p className="text-base font-semibold text-slate-900">{inv.invoiceNumber}</p>
+                          <p className="text-xs text-slate-500">
+                            Vystavená: {inv.issueDate} · Splatnosť: {inv.dueDate}
+                          </p>
+                          {inv.orderId && <p className="text-xs text-slate-500">Objednávka: {inv.orderId}</p>}
+                        </div>
+                        <div className="text-right">
+                          <p className="text-lg font-semibold text-slate-900">
+                            {inv.total.toLocaleString('sk-SK')} {inv.currency}
+                          </p>
+                          <a
+                            href={`/api/account/invoices/${inv.invoiceNumber}`}
+                            className="mt-2 inline-flex items-center justify-center rounded-full border border-slate-300 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                            download
+                          >
+                            Stiahnuť
+                          </a>
+                        </div>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </section>
+          </div>
+        )}
+
+        {!isAuthenticated && (
+          <div className="mt-10 space-y-6">
+            <form onSubmit={handleLogin} className="space-y-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-card">
+              <p className="text-lg font-semibold text-slate-900">Prihlasenie</p>
               <input
-                placeholder="Zadajte 2FA kód"
-                value={loginState.otp}
-                onChange={(event) => setLoginState({ ...loginState, otp: event.target.value })}
+                type="email"
+                placeholder="E-mail"
+                required
+                value={loginState.email}
+                onChange={(e) => setLoginState({ ...loginState, email: e.target.value })}
                 className="w-full rounded-2xl border border-slate-200 px-4 py-3 focus:border-slate-900 focus:outline-none"
               />
-            )}
-            <label className="flex items-center gap-2 text-sm text-slate-600">
-              <input
-                type="checkbox"
-                checked={loginState.require2fa}
-                onChange={(event) => setLoginState({ ...loginState, require2fa: event.target.checked })}
-                className="h-4 w-4 rounded border-slate-300 text-slate-900"
-              />
-              Chcem použiť 2FA (OTP kód zaslaný e-mailom)
-            </label>
-            <button
-              type="submit"
-              className="w-full rounded-full bg-brand-accent px-6 py-3 text-base font-semibold text-slate-900"
-            >
-              Prihlásiť sa
-            </button>
-            <button
-              type="button"
-              className="w-full rounded-full border border-slate-200 px-6 py-3 text-sm font-semibold text-slate-600"
-              onClick={sendInstantReset}
-            >
-              Poslať nové heslo na e-mail
-            </button>
-            {messages.login && <p className="text-xs text-emerald-600">{messages.login}</p>}
-            <div className="flex gap-4">
-              <button
-                type="button"
-                className="flex-1 rounded-full border border-slate-200 px-6 py-2 text-sm font-semibold text-slate-700"
-                onClick={() => {
-                  setShowReset((prev) => !prev);
-                  setShowRegister(false);
-                }}
-              >
-                Obnoviť heslo
-              </button>
-              <button
-                type="button"
-                className="flex-1 rounded-full border border-slate-900 px-6 py-2 text-sm font-semibold text-slate-900"
-                onClick={() => {
-                  setShowRegister((prev) => !prev);
-                  setShowReset(false);
-                }}
-              >
-                Registrácia
-              </button>
-            </div>
-          </form>
-
-          {showRegister && (
-            <form
-              onSubmit={handleRegister}
-              className="space-y-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-card"
-            >
-            <p className="text-lg font-semibold text-slate-900">Vytvoriť B2B účet</p>
-            <input
-              type="email"
-              placeholder="Firemný e-mail"
-              required
-              value={registerState.email}
-              onChange={(event) => setRegisterState({ ...registerState, email: event.target.value })}
-              className="w-full rounded-2xl border border-slate-200 px-4 py-3 focus:border-slate-900 focus:outline-none"
-            />
-            <div className="grid gap-4 md:grid-cols-2">
               <input
                 type="password"
                 placeholder="Heslo"
                 required
-                value={registerState.password}
-                onChange={(event) => setRegisterState({ ...registerState, password: event.target.value })}
-                className="rounded-2xl border border-slate-200 px-4 py-3 focus:border-slate-900 focus:outline-none"
+                value={loginState.password}
+                onChange={(e) => setLoginState({ ...loginState, password: e.target.value })}
+                className="w-full rounded-2xl border border-slate-200 px-4 py-3 focus:border-slate-900 focus:outline-none"
               />
-              <input
-                type="password"
-                placeholder="Potvrdiť heslo"
-                required
-                value={registerState.confirmPassword}
-                onChange={(event) => setRegisterState({ ...registerState, confirmPassword: event.target.value })}
-                className="rounded-2xl border border-slate-200 px-4 py-3 focus:border-slate-900 focus:outline-none"
-              />
-            </div>
-            <input
-              placeholder="Spoločnosť"
-              required
-              value={registerState.companyName}
-              onChange={(event) => setRegisterState({ ...registerState, companyName: event.target.value })}
-              className="w-full rounded-2xl border border-slate-200 px-4 py-3 focus:border-slate-900 focus:outline-none"
-            />
-            <div className="grid gap-4 md:grid-cols-3">
-              <input
-                placeholder="IČO"
-                required
-                value={registerState.ico}
-                onChange={(event) => setRegisterState({ ...registerState, ico: event.target.value })}
-                className="rounded-2xl border border-slate-200 px-4 py-3 focus:border-slate-900 focus:outline-none"
-              />
-              <input
-                placeholder="DIČ"
-                required
-                value={registerState.dic}
-                onChange={(event) => setRegisterState({ ...registerState, dic: event.target.value })}
-                className="rounded-2xl border border-slate-200 px-4 py-3 focus:border-slate-900 focus:outline-none"
-              />
-              <input
-                placeholder="IČ DPH"
-                value={registerState.vatId}
-                onChange={(event) => setRegisterState({ ...registerState, vatId: event.target.value })}
-                className="rounded-2xl border border-slate-200 px-4 py-3 focus:border-slate-900 focus:outline-none"
-              />
-            </div>
-            <label className="text-sm font-semibold text-slate-700">
-              Úroveň oprávnenia
-              <select
-                value={registerState.role}
-                onChange={(event) => setRegisterState({ ...registerState, role: event.target.value as 'user' | 'admin' })}
-                className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 focus:border-slate-900 focus:outline-none"
+              <div>
+                <p className="text-xs font-semibold text-slate-500">Captcha bezpecnostny kod</p>
+                <div className="mt-2 flex items-center gap-4 rounded-2xl border border-slate-200 p-3">
+                  <Image
+                    src={`data:image/svg+xml;utf8,${captchaSvg}`}
+                    alt="Captcha"
+                    width={160}
+                    height={48}
+                    className="h-10 w-32 rounded-md border border-slate-100 bg-slate-900"
+                  />
+                  <input
+                    placeholder="Zadajte kod"
+                    value={loginState.captcha}
+                    onChange={(e) => setLoginState({ ...loginState, captcha: e.target.value.toUpperCase() })}
+                    className="flex-1 rounded-2xl border border-slate-200 px-4 py-2 text-sm focus:border-slate-900 focus:outline-none"
+                  />
+                </div>
+              </div>
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="w-full rounded-full bg-brand-accent px-6 py-3 text-base font-semibold text-slate-900 disabled:opacity-50"
               >
-                <option value="user">Bežný používateľ</option>
-                <option value="admin">Administrátor</option>
-              </select>
-            </label>
-            <div>
-              <label className="text-xs font-semibold text-slate-500">Captcha bezpečnostný kód: {CAPTCHA_CODE}</label>
-              <input
-                placeholder="Zadajte kód"
-                value={registerState.captcha}
-                onChange={(event) => setRegisterState({ ...registerState, captcha: event.target.value })}
-                className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 focus:border-slate-900 focus:outline-none"
-              />
-            </div>
-            <label className="flex items-center gap-2 text-sm text-slate-600">
-              <input
-                type="checkbox"
-                checked={registerState.twoFactorEnabled}
-                onChange={(event) => setRegisterState({ ...registerState, twoFactorEnabled: event.target.checked })}
-                className="h-4 w-4 rounded border-slate-300 text-slate-900"
-              />
-              Aktivovať 2FA hneď po vytvorení účtu
-            </label>
-            <button
-              type="submit"
-              className="w-full rounded-full border border-slate-900 px-6 py-3 text-base font-semibold text-slate-900"
-            >
-              Vytvoriť účet
-            </button>
-            {messages.register && <p className="text-xs text-emerald-600">{messages.register}</p>}
+                {isSubmitting ? 'Prihlasujem...' : 'Prihlasit sa'}
+              </button>
+              {messages.login && (
+                <p className={`text-xs ${messages.login.includes('zlyhalo') || messages.login.includes('nesedi') ? 'text-red-600' : 'text-emerald-600'}`}>
+                  {messages.login}
+                </p>
+              )}
+              <div className="flex gap-4">
+                <button
+                  type="button"
+                  className="flex-1 rounded-full border border-slate-200 px-6 py-2 text-sm font-semibold text-slate-700"
+                  onClick={() => {
+                    setShowReset((prev) => !prev);
+                    setShowRegister(false);
+                  }}
+                >
+                  Obnovit heslo
+                </button>
+                <button
+                  type="button"
+                  className="flex-1 rounded-full border border-slate-900 px-6 py-2 text-sm font-semibold text-slate-900"
+                  onClick={() => {
+                    setShowRegister((prev) => !prev);
+                    setShowReset(false);
+                  }}
+                >
+                  Registracia
+                </button>
+              </div>
             </form>
-          )}
 
-          {showReset && (
-            <form
-              onSubmit={handleReset}
-              className="space-y-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-card"
-            >
-          <p className="text-lg font-semibold text-slate-900">Obnoviť heslo</p>
-          <input
-            type="email"
-            placeholder="Firemný e-mail"
-            required
-            value={resetState.email}
-            onChange={(event) => setResetState({ ...resetState, email: event.target.value })}
-            className="w-full rounded-2xl border border-slate-200 px-4 py-3 focus:border-slate-900 focus:outline-none"
-          />
-          <div>
-            <label className="text-xs font-semibold text-slate-500">Captcha bezpečnostný kód: {CAPTCHA_CODE}</label>
-            <input
-              placeholder="Zadajte kód"
-              required
-              value={resetState.captcha}
-              onChange={(event) => setResetState({ ...resetState, captcha: event.target.value })}
-              className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 focus:border-slate-900 focus:outline-none"
-            />
+            {showRegister && (
+              <form
+                onSubmit={handleRegister}
+                className="space-y-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-card"
+              >
+                <p className="text-lg font-semibold text-slate-900">Vytvorit B2B ucet</p>
+                <input
+                  type="email"
+                  placeholder="Firemny e-mail *"
+                  required
+                  value={registerState.email}
+                  onChange={(e) => setRegisterState({ ...registerState, email: e.target.value })}
+                  className="w-full rounded-2xl border border-slate-200 px-4 py-3 focus:border-slate-900 focus:outline-none"
+                />
+                <div className="grid gap-4 md:grid-cols-2">
+                  <input
+                    type="password"
+                    placeholder="Heslo *"
+                    required
+                    value={registerState.password}
+                    onChange={(e) => setRegisterState({ ...registerState, password: e.target.value })}
+                    className="rounded-2xl border border-slate-200 px-4 py-3 focus:border-slate-900 focus:outline-none"
+                  />
+                  <input
+                    type="password"
+                    placeholder="Potvrdit heslo *"
+                    required
+                    value={registerState.confirmPassword}
+                    onChange={(e) => setRegisterState({ ...registerState, confirmPassword: e.target.value })}
+                    className="rounded-2xl border border-slate-200 px-4 py-3 focus:border-slate-900 focus:outline-none"
+                  />
+                </div>
+                <input
+                  placeholder="Spolocnost *"
+                  required
+                  value={registerState.companyName}
+                  onChange={(e) => setRegisterState({ ...registerState, companyName: e.target.value })}
+                  className="w-full rounded-2xl border border-slate-200 px-4 py-3 focus:border-slate-900 focus:outline-none"
+                />
+                <div className="grid gap-4 md:grid-cols-3">
+                  <input
+                    placeholder="ICO"
+                    value={registerState.ico}
+                    onChange={(e) => setRegisterState({ ...registerState, ico: e.target.value })}
+                    className="rounded-2xl border border-slate-200 px-4 py-3 focus:border-slate-900 focus:outline-none"
+                  />
+                  <input
+                    placeholder="DIC"
+                    value={registerState.dic}
+                    onChange={(e) => setRegisterState({ ...registerState, dic: e.target.value })}
+                    className="rounded-2xl border border-slate-200 px-4 py-3 focus:border-slate-900 focus:outline-none"
+                  />
+                  <input
+                    placeholder="IC DPH"
+                    value={registerState.vatId}
+                    onChange={(e) => setRegisterState({ ...registerState, vatId: e.target.value })}
+                    className="rounded-2xl border border-slate-200 px-4 py-3 focus:border-slate-900 focus:outline-none"
+                  />
+                </div>
+                <input
+                  placeholder="Telefon"
+                  value={registerState.phone}
+                  onChange={(e) => setRegisterState({ ...registerState, phone: e.target.value })}
+                  className="w-full rounded-2xl border border-slate-200 px-4 py-3 focus:border-slate-900 focus:outline-none"
+                />
+                <input
+                  placeholder="Ulica a cislo"
+                  value={registerState.street}
+                  onChange={(e) => setRegisterState({ ...registerState, street: e.target.value })}
+                  className="w-full rounded-2xl border border-slate-200 px-4 py-3 focus:border-slate-900 focus:outline-none"
+                />
+                <div className="grid gap-4 md:grid-cols-3">
+                  <input
+                    placeholder="PSC"
+                    value={registerState.zip}
+                    onChange={(e) => setRegisterState({ ...registerState, zip: e.target.value })}
+                    className="rounded-2xl border border-slate-200 px-4 py-3 focus:border-slate-900 focus:outline-none"
+                  />
+                  <input
+                    placeholder="Mesto"
+                    value={registerState.city}
+                    onChange={(e) => setRegisterState({ ...registerState, city: e.target.value })}
+                    className="rounded-2xl border border-slate-200 px-4 py-3 focus:border-slate-900 focus:outline-none"
+                  />
+                  <input
+                    placeholder="Krajina"
+                    value={registerState.country}
+                    onChange={(e) => setRegisterState({ ...registerState, country: e.target.value })}
+                    className="rounded-2xl border border-slate-200 px-4 py-3 focus:border-slate-900 focus:outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs font-semibold text-slate-500">Captcha bezpecnostny kod: {CAPTCHA_TEXT}</label>
+                  <input
+                    placeholder="Zadajte kod"
+                    value={registerState.captcha}
+                    onChange={(e) => setRegisterState({ ...registerState, captcha: e.target.value.toUpperCase() })}
+                    className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 focus:border-slate-900 focus:outline-none"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="w-full rounded-full border border-slate-900 px-6 py-3 text-base font-semibold text-slate-900 disabled:opacity-50"
+                >
+                  {isSubmitting ? 'Vytvariam ucet...' : 'Vytvorit ucet'}
+                </button>
+                {messages.register && (
+                  <p className={`text-xs ${messages.register.includes('zlyhala') || messages.register.includes('nesedi') ? 'text-red-600' : 'text-emerald-600'}`}>
+                    {messages.register}
+                  </p>
+                )}
+              </form>
+            )}
+
+            {showReset && (
+              <form
+                onSubmit={handleReset}
+                className="space-y-4 rounded-3xl border border-slate-200 bg-white p-6 shadow-card"
+              >
+                <p className="text-lg font-semibold text-slate-900">Obnovit heslo</p>
+                <input
+                  type="email"
+                  placeholder="Firemny e-mail"
+                  required
+                  value={resetState.email}
+                  onChange={(e) => setResetState({ ...resetState, email: e.target.value })}
+                  className="w-full rounded-2xl border border-slate-200 px-4 py-3 focus:border-slate-900 focus:outline-none"
+                />
+                <div>
+                  <label className="text-xs font-semibold text-slate-500">Captcha bezpecnostny kod: {CAPTCHA_TEXT}</label>
+                  <input
+                    placeholder="Zadajte kod"
+                    required
+                    value={resetState.captcha}
+                    onChange={(e) => setResetState({ ...resetState, captcha: e.target.value.toUpperCase() })}
+                    className="mt-2 w-full rounded-2xl border border-slate-200 px-4 py-3 focus:border-slate-900 focus:outline-none"
+                  />
+                </div>
+                <button
+                  type="submit"
+                  className="w-full rounded-full bg-slate-900 px-6 py-3 text-base font-semibold text-white"
+                >
+                  Odoslat odkaz na obnovu
+                </button>
+                {messages.reset && <p className="text-xs text-emerald-600">{messages.reset}</p>}
+              </form>
+            )}
           </div>
-          <button
-            type="submit"
-            className="w-full rounded-full bg-slate-900 px-6 py-3 text-base font-semibold text-white"
-          >
-            Odoslať odkaz na obnovu
-          </button>
-          {messages.reset && <p className="text-xs text-emerald-600">{messages.reset}</p>}
-        </form>
-          )}
-        </div>
+        )}
       </main>
       <Footer />
     </div>

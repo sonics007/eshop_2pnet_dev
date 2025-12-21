@@ -3,12 +3,15 @@
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import type { SiteSettings } from '@/lib/siteSettings';
+import { useLanguage } from '@/components/LanguageContext';
 
 type HeroProps = {
   heroSettings?: SiteSettings['hero'];
 };
 
 export function Hero({ heroSettings }: HeroProps) {
+  const { language } = useLanguage();
+  const isCz = language === 'cz';
   const [activeIndex, setActiveIndex] = useState(0);
   const images = heroSettings?.carouselImages?.length
     ? heroSettings.carouselImages
@@ -35,19 +38,28 @@ export function Hero({ heroSettings }: HeroProps) {
 
   const highlights = useMemo(() => heroSettings?.highlights ?? [], [heroSettings]);
 
+  const title =
+    (isCz && heroSettings?.translations?.cz?.title) || heroSettings?.title || '';
+  const description =
+    (isCz && heroSettings?.translations?.cz?.description) || heroSettings?.description || '';
+  const primaryCtaLabel =
+    (isCz && heroSettings?.translations?.cz?.primaryCtaLabel) || heroSettings?.primaryCtaLabel || '';
+  const secondaryCtaLabel =
+    (isCz && heroSettings?.translations?.cz?.secondaryCtaLabel) || heroSettings?.secondaryCtaLabel || '';
+
   return (
     <section className="hero-gradient relative overflow-hidden rounded-[40px] p-10 text-white shadow-xl" style={backgroundLayer}>
       <div className="grid gap-10 md:grid-cols-[2fr,1fr]">
         <div>
           <p className="text-xs uppercase tracking-[0.3em] text-emerald-300">2pnet s.r.o.</p>
-          <h1 className="mt-4 text-4xl font-semibold leading-tight md:text-5xl">{heroSettings?.title}</h1>
-          <p className="mt-4 max-w-2xl text-lg text-white/80">{heroSettings?.description}</p>
+          <h1 className="mt-4 text-4xl font-semibold leading-tight md:text-5xl">{title}</h1>
+          <p className="mt-4 max-w-2xl text-lg text-white/80">{description}</p>
           <div className="mt-10 flex flex-wrap gap-4">
             <Link href={heroSettings?.primaryCtaLink || '#'} className="rounded-full bg-emerald-400 px-8 py-3 text-sm font-semibold text-slate-900 shadow-lg">
-              {heroSettings?.primaryCtaLabel}
+              {primaryCtaLabel}
             </Link>
             <Link href={heroSettings?.secondaryCtaLink || '#'} className="rounded-full border border-white/30 px-8 py-3 text-sm font-semibold text-white">
-              {heroSettings?.secondaryCtaLabel}
+              {secondaryCtaLabel}
             </Link>
           </div>
           {!!images.length && (
@@ -85,8 +97,8 @@ export function Hero({ heroSettings }: HeroProps) {
           {highlights.map((h, idx) => (
             <div key={`${h.metric}-${idx}`} className="rounded-3xl border border-white/10 bg-white/5 p-4 backdrop-blur">
               <p className="text-3xl font-semibold text-white">{h.metric}</p>
-              <p className="mt-2 text-base font-semibold text-white">{h.title}</p>
-              <p className="mt-2 text-sm text-white/80">{h.copy}</p>
+              <p className="mt-2 text-base font-semibold text-white">{isCz && h.titleCz ? h.titleCz : h.title}</p>
+              <p className="mt-2 text-sm text-white/80">{isCz && h.copyCz ? h.copyCz : h.copy}</p>
             </div>
           ))}
         </div>

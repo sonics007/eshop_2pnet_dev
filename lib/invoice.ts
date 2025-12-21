@@ -7,9 +7,28 @@ export type InvoicePayload = {
   templateVersion?: string;
 };
 
-export function calculateVat(baseValue: number, vatRate = 0.21) {
-  const vat = Number((baseValue * vatRate).toFixed(2));
-  return { baseValue, vat, total: Number((baseValue + vat).toFixed(2)) };
+/**
+ * Vypočíta DPH z ceny.
+ * @param value - Hodnota ceny
+ * @param vatRate - Sadzba DPH (default 0.21 = 21%)
+ * @param isVatInclusive - Ak true, cena už obsahuje DPH (brutto). Ak false (default), cena je bez DPH (netto).
+ *
+ * B2B ceny sú typicky BEZ DPH (netto), preto je default isVatInclusive = false
+ */
+export function calculateVat(value: number, vatRate = 0.21, isVatInclusive = false) {
+  if (isVatInclusive) {
+    // Cena už obsahuje DPH - extrahujeme základ
+    const total = Number(value.toFixed(2));
+    const baseValue = Number((total / (1 + vatRate)).toFixed(2));
+    const vat = Number((total - baseValue).toFixed(2));
+    return { baseValue, vat, total };
+  } else {
+    // Cena je BEZ DPH - pripočítame DPH
+    const baseValue = Number(value.toFixed(2));
+    const vat = Number((baseValue * vatRate).toFixed(2));
+    const total = Number((baseValue + vat).toFixed(2));
+    return { baseValue, vat, total };
+  }
 }
 
 export function buildInvoiceNumber(sequence: number) {
@@ -27,7 +46,7 @@ export async function generateInvoiceFromOrder(order: AdminOrder, templateVersio
   const issueDate = new Date();
   const dueDate = addDays(issueDate, template.defaults.dueDays);
   const supplyDate = addDays(issueDate, template.defaults.supplyDaysOffset);
-  const { vat, total } = calculateVat(order.total, template.defaults.vatRate);
+  const { baseValue, vat, total } = calculateVat(order.total, template.defaults.vatRate);
   const invoiceNumber = buildInvoiceNumber(Math.floor(Math.random() * 90000) + 10000);
 
   const invoice = {
@@ -46,7 +65,7 @@ export async function generateInvoiceFromOrder(order: AdminOrder, templateVersio
     issueDate: issueDate.toISOString().slice(0, 10),
     dueDate: dueDate.toISOString().slice(0, 10),
     supplyDate: supplyDate.toISOString().slice(0, 10),
-    basePrice: order.total,
+    basePrice: baseValue,
     vatValue: vat,
     totalPrice: total,
     currency: template.defaults.currency,

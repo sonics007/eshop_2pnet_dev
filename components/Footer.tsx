@@ -36,7 +36,7 @@ export function Footer({ manualLinks }: FooterProps) {
   const columns = chunkLinks(links, 3);
 
   return (
-    <footer className="mt-20 border-t border-slate-200 bg-white">
+    <footer className="mt-20 border-t border-slate-200 bg-white print:hidden">
       <div className="mx-auto grid max-w-6xl gap-10 px-6 py-12 md:grid-cols-4">
         <div>
           <p className="text-lg font-semibold text-slate-900">2Pnet s.r.o.</p>

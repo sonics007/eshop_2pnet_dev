@@ -3,6 +3,7 @@ import type { Prisma } from '@prisma/client';
 import { prisma } from '@/lib/prisma';
 import { getProducts, mapDbProduct } from '@/lib/products.server';
 import type { ProductTranslation } from '@/types/product';
+import { isAdminAuthenticated, unauthorizedResponse } from '@/lib/auth/middleware';
 
 type ProductPayload = {
   slug: string;
@@ -10,6 +11,7 @@ type ProductPayload = {
   tagline?: string;
   description?: string;
   price: number;
+  vatRate?: number;
   currency: string;
   badge?: string;
   billingPeriod?: string;
@@ -68,7 +70,16 @@ export async function GET(request: Request) {
   }
 }
 
+/**
+ * POST /api/products
+ * Vytvorenie produktu - vyžaduje admin autentifikáciu
+ */
 export async function POST(request: Request) {
+  const admin = await isAdminAuthenticated();
+  if (!admin) {
+    return unauthorizedResponse('Prístup len pre administrátorov');
+  }
+
   const payload = (await request.json()) as ProductPayload;
 
   if (!payload.slug || !payload.name || typeof payload.price !== 'number') {
@@ -89,6 +100,7 @@ export async function POST(request: Request) {
         tagline: stringOrNull(payload.tagline),
         description: stringOrNull(payload.description),
         price: payload.price,
+        vatRate: payload.vatRate ?? 20,
         currency: payload.currency || 'EUR',
         badge: stringOrNull(payload.badge),
         billingPeriod: stringOrNull(payload.billingPeriod),

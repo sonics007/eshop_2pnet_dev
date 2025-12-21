@@ -1,9 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import Link from 'next/link';
-import { Footer } from '@/components/Footer';
-import { Navbar } from '@/components/Navbar';
+import { AdminLayout } from '@/components/admin/AdminLayout';
 import type { InvoiceTemplate } from '@/lib/invoiceTemplate';
 
 const emptyTemplate: InvoiceTemplate = {
@@ -85,21 +83,14 @@ export default function InvoiceTemplateEditor() {
   };
 
   return (
-    <div className="bg-slate-50">
-      <Navbar />
-      <main className="mx-auto max-w-4xl px-6 py-16">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Backoffice</p>
-            <h1 className="text-4xl font-semibold text-slate-900">Mustr fakturace (CZ)</h1>
-            <p className="mt-2 text-sm text-slate-500">
-              Vyplňte statutární údaje dodavatele, platební instrukce a texty povinné dle české legislativy.
-            </p>
-          </div>
-          <Link href="/admin/invoices" className="rounded-full border border-slate-200 px-4 py-2 text-sm text-slate-600">
-            ← Zpět na faktury
-          </Link>
-        </div>
+    <AdminLayout activePanel="admin-invoice-template">
+      <div className="mb-8">
+        <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Backoffice</p>
+        <h1 className="text-4xl font-semibold text-slate-900">Mustr fakturace (CZ)</h1>
+        <p className="mt-2 text-sm text-slate-500">
+          Vyplňte statutární údaje dodavatele, platební instrukce a texty povinné dle české legislativy.
+        </p>
+      </div>
 
 {loading ? (
           <p className="mt-8 text-sm text-slate-500">Načítavam...</p>
@@ -304,8 +295,6 @@ export default function InvoiceTemplateEditor() {
           </button>
         </div>
         {message && <p className="mt-2 text-xs text-slate-500">{message}</p>}
-      </main>
-      <Footer />
-    </div>
+    </AdminLayout>
   );
 }

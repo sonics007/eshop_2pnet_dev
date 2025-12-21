@@ -1,13 +1,16 @@
 ﻿import path from 'path';
 import { readConfig, writeConfig } from '@/lib/configStore';
 import { defaultSiteSettings, mergeSiteSettings, type SiteSettings } from '@/lib/siteSettingsShared';
+import { readLinkSettings } from '@/lib/modules/site/pages/links';
 
 const CONFIG_KEY = 'site-settings';
 const legacyPath = path.join(process.cwd(), 'data', 'siteSettings.json');
 
 export async function readSiteSettings(): Promise<SiteSettings> {
   const stored = await readConfig<SiteSettings>(CONFIG_KEY, defaultSiteSettings, legacyPath);
-  return mergeSiteSettings(stored);
+  // Načítaj linky z dedikovaného modulu (admin /admin/links)
+  const links = await readLinkSettings();
+  return mergeSiteSettings({ ...stored, links });
 }
 
 export async function writeSiteSettings(settings: SiteSettings) {

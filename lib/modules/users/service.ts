@@ -11,8 +11,20 @@ import type {
   UserListItem,
   CreateUserInput,
   UpdateUserInput,
-  TwoFASetupResponse
+  TwoFASetupResponse,
+  AdminInviteResult,
+  SetPasswordInput
 } from './types';
+import { randomBytes } from 'crypto';
+
+function safeParsePayment(value: string): string[] {
+  try {
+    const parsed = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
+}
 
 /**
  * Získa zoznam používateľov
@@ -27,6 +39,7 @@ export async function listUsers(role?: string): Promise<UserListItem[]> {
       id: true,
       email: true,
       companyName: true,
+      paymentMethods: true,
       role: true,
       twoFactorEnabled: true,
       createdAt: true
@@ -37,6 +50,7 @@ export async function listUsers(role?: string): Promise<UserListItem[]> {
     id: u.id,
     email: u.email,
     companyName: u.companyName,
+    paymentMethods: u.paymentMethods ? safeParsePayment(u.paymentMethods) : [],
     role: u.role,
     twoFactorEnabled: u.twoFactorEnabled,
     createdAt: u.createdAt.toISOString()
@@ -56,6 +70,7 @@ export async function getUser(id: number) {
       ico: true,
       dic: true,
       vatId: true,
+      paymentMethods: true,
       role: true,
       twoFactorEnabled: true,
       createdAt: true
@@ -66,6 +81,7 @@ export async function getUser(id: number) {
 
   return {
     ...user,
+    paymentMethods: user.paymentMethods ? safeParsePayment(user.paymentMethods) : [],
     createdAt: user.createdAt.toISOString()
   };
 }
@@ -74,17 +90,37 @@ export async function getUser(id: number) {
  * Vytvorí nového používateľa
  */
 export async function createUser(input: CreateUserInput): Promise<UserListItem> {
+  console.log('[Service] createUser called with:', { ...input, password: input.password ? '***' : undefined });
+
   // Kontrola či email už existuje
   const existing = await prisma.user.findUnique({
     where: { email: input.email.toLowerCase() }
   });
+  console.log('[Service] Existing user check:', existing ? 'FOUND' : 'NOT FOUND');
 
   if (existing) {
     throw new Error('Používateľ s týmto emailom už existuje');
   }
 
-  // Hash hesla
-  const passwordHash = await bcrypt.hash(input.password, 12);
+  // Pre bežných používateľov je heslo povinné
+  console.log('[Service] sendInvitation:', input.sendInvitation, 'password:', !!input.password);
+  if (!input.sendInvitation && !input.password) {
+    throw new Error('Heslo je povinné');
+  }
+
+  // Hash hesla alebo null pre invitation
+  const passwordHash = input.password
+    ? await bcrypt.hash(input.password, 12)
+    : null;
+
+  // Generuj invitation token ak je to admin bez hesla
+  let invitationToken: string | null = null;
+  let invitationExpiry: Date | null = null;
+
+  if (input.sendInvitation && !input.password) {
+    invitationToken = randomBytes(32).toString('hex');
+    invitationExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 hodín
+  }
 
   const user = await prisma.user.create({
     data: {
@@ -94,16 +130,21 @@ export async function createUser(input: CreateUserInput): Promise<UserListItem> 
       ico: input.ico || null,
       dic: input.dic || null,
       vatId: input.vatId || null,
+      paymentMethods: input.paymentMethods ? JSON.stringify(input.paymentMethods) : '[]',
       role: input.role || 'user',
-      twoFactorEnabled: input.twoFactorEnabled || false
+      twoFactorEnabled: input.twoFactorEnabled || false,
+      invitationToken,
+      invitationExpiry
     },
     select: {
       id: true,
       email: true,
       companyName: true,
+      paymentMethods: true,
       role: true,
       twoFactorEnabled: true,
-      createdAt: true
+      createdAt: true,
+      invitationToken: true
     }
   });
 
@@ -111,10 +152,123 @@ export async function createUser(input: CreateUserInput): Promise<UserListItem> 
     id: user.id,
     email: user.email,
     companyName: user.companyName,
+    paymentMethods: user.paymentMethods ? safeParsePayment(user.paymentMethods) : [],
     role: user.role,
     twoFactorEnabled: user.twoFactorEnabled,
     createdAt: user.createdAt.toISOString()
   };
+}
+
+/**
+ * Vytvorí admina a pošle invitation email
+ */
+export async function createAdminWithInvitation(input: CreateUserInput): Promise<AdminInviteResult> {
+  console.log('[Service] createAdminWithInvitation called with:', input);
+
+  // Vytvor admina bez hesla
+  const user = await createUser({
+    ...input,
+    role: 'admin',
+    sendInvitation: true,
+    password: undefined
+  });
+  console.log('[Service] User created:', user);
+
+  // Získaj invitation token
+  const dbUser = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: { invitationToken: true }
+  });
+
+  let invitationSent = false;
+  let invitationError: string | undefined;
+
+  // Pošli invitation email
+  if (dbUser?.invitationToken) {
+    try {
+      const { sendAdminInvitationEmail } = await import('@/lib/modules/email/service');
+      const result = await sendAdminInvitationEmail(user.email, dbUser.invitationToken, user.companyName);
+      invitationSent = result.success;
+      if (!result.success) {
+        invitationError = result.error;
+      }
+    } catch (error) {
+      invitationError = error instanceof Error ? error.message : 'Nepodarilo sa odoslať email';
+    }
+  }
+
+  return {
+    user,
+    invitationSent,
+    invitationError
+  };
+}
+
+/**
+ * Nastaví heslo cez invitation token
+ */
+export async function setPasswordByToken(input: SetPasswordInput): Promise<{ success: boolean; error?: string }> {
+  const user = await prisma.user.findFirst({
+    where: { invitationToken: input.token }
+  });
+
+  if (!user) {
+    return { success: false, error: 'Neplatný alebo expirovaný odkaz' };
+  }
+
+  const expiry = user.invitationExpiry ? new Date(user.invitationExpiry as any) : null;
+  if (!expiry || expiry.getTime() < Date.now()) {
+    return { success: false, error: 'Neplatný alebo expirovaný odkaz' };
+  }
+
+  const passwordHash = await bcrypt.hash(input.password, 12);
+
+  await prisma.user.update({
+    where: { id: user.id },
+    data: {
+      passwordHash,
+      invitationToken: null,
+      invitationExpiry: null
+    }
+  });
+
+  return { success: true };
+}
+
+/**
+ * Znovu pošle invitation email
+ */
+export async function resendInvitation(userId: number): Promise<{ success: boolean; error?: string }> {
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { id: true, email: true, companyName: true, passwordHash: true, role: true }
+  });
+
+  if (!user) {
+    return { success: false, error: 'Používateľ nenájdený' };
+  }
+
+  if (user.passwordHash) {
+    return { success: false, error: 'Používateľ už má nastavené heslo' };
+  }
+
+  // Generuj nový token
+  const invitationToken = randomBytes(32).toString('hex');
+  const invitationExpiry = new Date(Date.now() + 24 * 60 * 60 * 1000);
+
+  await prisma.user.update({
+    where: { id: userId },
+    data: { invitationToken, invitationExpiry }
+  });
+
+  // Pošli email
+  try {
+    const { sendAdminInvitationEmail } = await import('@/lib/modules/email/service');
+    const result = await sendAdminInvitationEmail(user.email, invitationToken, user.companyName);
+    return { success: result.success, error: result.error };
+  } catch (error) {
+    return { success: false, error: error instanceof Error ? error.message : 'Chyba pri odosielaní' };
+  }
 }
 
 /**
@@ -145,6 +299,7 @@ export async function updateUser(id: number, input: UpdateUserInput): Promise<Us
   if (input.ico !== undefined) updateData.ico = input.ico || null;
   if (input.dic !== undefined) updateData.dic = input.dic || null;
   if (input.vatId !== undefined) updateData.vatId = input.vatId || null;
+    if (input.paymentMethods !== undefined) updateData.paymentMethods = input.paymentMethods ? JSON.stringify(input.paymentMethods) : '[]';
   if (input.role) updateData.role = input.role;
   if (typeof input.twoFactorEnabled === 'boolean') updateData.twoFactorEnabled = input.twoFactorEnabled;
 
@@ -160,6 +315,7 @@ export async function updateUser(id: number, input: UpdateUserInput): Promise<Us
       id: true,
       email: true,
       companyName: true,
+      paymentMethods: true,
       role: true,
       twoFactorEnabled: true,
       createdAt: true
@@ -170,6 +326,7 @@ export async function updateUser(id: number, input: UpdateUserInput): Promise<Us
     id: user.id,
     email: user.email,
     companyName: user.companyName,
+    paymentMethods: user.paymentMethods ? safeParsePayment(user.paymentMethods) : [],
     role: user.role,
     twoFactorEnabled: user.twoFactorEnabled,
     createdAt: user.createdAt.toISOString()
@@ -184,6 +341,36 @@ export async function deleteUser(id: number): Promise<void> {
   if (!existing) {
     throw new Error('Používateľ nenájdený');
   }
+
+  // odstráň/odpojí závislosti, aby FK neblokovali zmazanie
+  await prisma.order.updateMany({
+    where: { userId: id },
+    data: { userId: null }
+  });
+
+  await prisma.invoice.updateMany({
+    where: { userId: id },
+    data: { userId: null }
+  });
+
+  // vymaž reset a invitation tokeny patriace tomuto používateľovi (podľa value.userId)
+  await prisma.config.deleteMany({
+    where: {
+      AND: [
+        { key: { startsWith: 'reset-token-' } },
+        { value: { contains: `"userId":${id}` } }
+      ]
+    }
+  }).catch(() => null);
+
+  await prisma.config.deleteMany({
+    where: {
+      AND: [
+        { key: { startsWith: 'invitation-token-' } },
+        { value: { contains: `"userId":${id}` } }
+      ]
+    }
+  }).catch(() => null);
 
   await prisma.user.delete({ where: { id } });
 }

@@ -24,7 +24,16 @@ export function mergeVisualSettings(payload: Partial<VisualSettings> | null | un
     primaryCtaLink: p.primaryCtaLink ?? defaultVisualSettings.primaryCtaLink,
     secondaryCtaLabel: p.secondaryCtaLabel ?? defaultVisualSettings.secondaryCtaLabel,
     secondaryCtaLink: p.secondaryCtaLink ?? defaultVisualSettings.secondaryCtaLink,
-    highlights: p.highlights ?? defaultVisualSettings.highlights
+    highlights: p.highlights ?? defaultVisualSettings.highlights,
+    secondaryHighlights: p.secondaryHighlights ?? defaultVisualSettings.secondaryHighlights,
+    translations: {
+      cz: {
+        title: p.translations?.cz?.title ?? defaultVisualSettings.translations?.cz?.title ?? '',
+        description: p.translations?.cz?.description ?? defaultVisualSettings.translations?.cz?.description ?? '',
+        primaryCtaLabel: p.translations?.cz?.primaryCtaLabel ?? defaultVisualSettings.translations?.cz?.primaryCtaLabel ?? '',
+        secondaryCtaLabel: p.translations?.cz?.secondaryCtaLabel ?? defaultVisualSettings.translations?.cz?.secondaryCtaLabel ?? ''
+      }
+    }
   };
 }
 

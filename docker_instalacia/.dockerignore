@@ -1,0 +1,77 @@
+# Dependencies
+node_modules
+.pnp
+.pnp.js
+
+# Testing
+coverage
+test-results
+playwright-report
+*.test.ts
+*.test.tsx
+*.spec.ts
+*.spec.tsx
+
+# Next.js
+.next
+out
+
+# Production
+build
+
+# Misc
+.DS_Store
+*.pem
+Thumbs.db
+
+# Debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Local env files
+.env
+.env*.local
+.env.test
+.env.production
+
+# Vercel
+.vercel
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# IDE
+.idea
+.vscode
+*.swp
+*.swo
+
+# Git
+.git
+.gitignore
+
+# Docker
+docker_instalacia
+Dockerfile
+docker-compose.yml
+.dockerignore
+
+# Documentation
+docs
+*.md
+!README.md
+
+# Instalation scripts
+instalacia
+
+# Temp files
+temp_*
+*.tmp
+*.log
+
+# Test configs
+vitest.config.ts
+playwright.config.ts
+tests

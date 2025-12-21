@@ -28,6 +28,11 @@ export const defaultSiteSettings: SiteSettings = {
       { metric: '48h', title: 'Servis do 48 h', copy: 'Lokalny tim inzinierov vyrazi do dvoch pracovnych dni.' },
       { metric: 'ZTNA', title: 'Zero-trust standard', copy: 'Kazde zariadenie je overene politikami zero-trust.' },
       { metric: '-32%', title: 'Ekologicka logistika', copy: 'Partneri s CO2 neutralitou a transparentnym trackingom.' }
+    ],
+    secondaryHighlights: [
+      { metric: '48h', title: 'Servis do 48 h', copy: 'Lokalny tim inzinierov vyrazi do dvoch pracovnych dni.' },
+      { metric: 'ZTNA', title: 'Zero-trust standard', copy: 'Kazde zariadenie je overene politikami zero-trust.' },
+      { metric: '-32%', title: 'Ekologicka logistika', copy: 'Partneri s CO2 neutralitou a transparentnym trackingom.' }
     ]
   },
   links: {
@@ -48,6 +53,17 @@ export function mergeSiteSettings(payload: Partial<SiteSettings> | null | undefi
   const defaultHero = defaultSiteSettings.hero;
   const defaultLinks = defaultSiteSettings.links;
 
+  const mergeHighlights = (items?: any[], defaults?: any[]) => {
+    if (!items?.length) return defaults ?? [];
+    return items.map((item, idx) => ({
+      metric: item.metric ?? defaults?.[idx]?.metric ?? '',
+      title: item.title ?? defaults?.[idx]?.title ?? '',
+      copy: item.copy ?? defaults?.[idx]?.copy ?? '',
+      titleCz: item.titleCz ?? defaults?.[idx]?.titleCz ?? '',
+      copyCz: item.copyCz ?? defaults?.[idx]?.copyCz ?? ''
+    }));
+  };
+
   return {
     hero: {
       backgroundImage: hero.backgroundImage ?? defaultHero.backgroundImage,
@@ -58,7 +74,16 @@ export function mergeSiteSettings(payload: Partial<SiteSettings> | null | undefi
       primaryCtaLink: hero.primaryCtaLink ?? defaultHero.primaryCtaLink,
       secondaryCtaLabel: hero.secondaryCtaLabel ?? defaultHero.secondaryCtaLabel,
       secondaryCtaLink: hero.secondaryCtaLink ?? defaultHero.secondaryCtaLink,
-      highlights: hero.highlights ?? defaultHero.highlights
+      highlights: mergeHighlights(hero.highlights, defaultHero.highlights),
+      secondaryHighlights: mergeHighlights(hero.secondaryHighlights, defaultHero.secondaryHighlights),
+      translations: {
+        cz: {
+          title: hero.translations?.cz?.title ?? defaultHero.translations?.cz?.title ?? '',
+          description: hero.translations?.cz?.description ?? defaultHero.translations?.cz?.description ?? '',
+          primaryCtaLabel: hero.translations?.cz?.primaryCtaLabel ?? defaultHero.translations?.cz?.primaryCtaLabel ?? '',
+          secondaryCtaLabel: hero.translations?.cz?.secondaryCtaLabel ?? defaultHero.translations?.cz?.secondaryCtaLabel ?? ''
+        }
+      }
     },
     links: {
       logoPrimaryLink: links.logoPrimaryLink ?? defaultLinks.logoPrimaryLink,

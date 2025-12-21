@@ -5,6 +5,11 @@
 
 # testing
 /coverage
+/playwright-report
+/test-results
+prisma/test.db
+prisma/test.db-journal
+.env.test.local
 
 # next.js
 /.next/

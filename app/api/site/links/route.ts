@@ -4,10 +4,11 @@ import {
   writeLinkSettings,
   type LinkSettings
 } from '@/lib/modules/site/pages/links';
+import { isAdminAuthenticated, unauthorizedResponse } from '@/lib/auth/middleware';
 
 /**
  * GET /api/site/links
- * Načíta nastavenia linkov
+ * Načíta nastavenia linkov (verejné)
  */
 export async function GET() {
   try {
@@ -24,9 +25,14 @@ export async function GET() {
 
 /**
  * POST /api/site/links
- * Zapíše nastavenia linkov
+ * Zapíše nastavenia linkov - vyžaduje admin autentifikáciu
  */
 export async function POST(request: Request) {
+  const admin = await isAdminAuthenticated();
+  if (!admin) {
+    return unauthorizedResponse('Prístup len pre administrátorov');
+  }
+
   try {
     const payload = await request.json() as Partial<LinkSettings>;
     const updated = await writeLinkSettings(payload);

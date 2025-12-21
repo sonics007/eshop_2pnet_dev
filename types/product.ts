@@ -5,6 +5,14 @@ export type ProductTranslation = {
   promotion?: string;
   badge?: string;
   specs?: string[];
+  price?: number;
+  currency?: string;
+};
+
+// Mapovanie jazyka na menu
+export const LANGUAGE_CURRENCY_MAP: Record<string, { currency: string; locale: string }> = {
+  sk: { currency: 'EUR', locale: 'sk-SK' },
+  cz: { currency: 'CZK', locale: 'cs-CZ' }
 };
 
 export type Product = {
@@ -17,6 +25,7 @@ export type Product = {
   subCategoryId?: number;
   tagline?: string;
   price: number;
+  vatRate: number;
   currency: string;
   billingPeriod?: string;
   image?: string;

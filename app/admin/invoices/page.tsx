@@ -2,8 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { Footer } from '@/components/Footer';
-import { Navbar } from '@/components/Navbar';
+import { AdminLayout } from '@/components/admin/AdminLayout';
 import type { InvoiceRecord } from '@/types/orders';
 
 export default function InvoiceAdminPage() {
@@ -26,27 +25,22 @@ export default function InvoiceAdminPage() {
   }, []);
 
   return (
-    <div className="bg-slate-50">
-      <Navbar />
-      <main className="mx-auto max-w-[1400px] px-6 py-16">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Backoffice</p>
-            <h1 className="text-4xl font-semibold text-slate-900">Faktúry</h1>
-            <p className="mt-2 text-sm text-slate-500">
-              Zoznam všetkých vystavených faktúr v Excel štýle. Kliknutím na riadok si môžete údaje exportovať alebo
-              otvoriť v šablóne.
-            </p>
-          </div>
-          <div className="flex gap-3">
-            <Link href="/admin/invoices/template" className="rounded-full border border-slate-200 px-4 py-2 text-sm">
-              Upraviť šablónu
-            </Link>
-            <Link href="/admin" className="rounded-full border border-slate-200 px-4 py-2 text-sm text-slate-600">
-              ← Späť do admin panelu
-            </Link>
-          </div>
+    <AdminLayout activePanel="admin-invoices">
+      <div className="flex flex-wrap items-center justify-between gap-4 mb-8">
+        <div>
+          <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Backoffice</p>
+          <h1 className="text-4xl font-semibold text-slate-900">Faktúry</h1>
+          <p className="mt-2 text-sm text-slate-500">
+            Zoznam všetkých vystavených faktúr v Excel štýle. Kliknutím na riadok si môžete údaje exportovať alebo
+            otvoriť v šablóne.
+          </p>
         </div>
+        <div className="flex gap-3">
+          <Link href="/admin/invoices/template" className="rounded-full border border-slate-200 px-4 py-2 text-sm">
+            Upraviť šablónu
+          </Link>
+        </div>
+      </div>
 
         {message && <p className="mt-4 text-sm text-amber-600">{message}</p>}
 
@@ -128,8 +122,6 @@ export default function InvoiceAdminPage() {
             </tbody>
           </table>
         </div>
-      </main>
-      <Footer />
-    </div>
+    </AdminLayout>
   );
 }

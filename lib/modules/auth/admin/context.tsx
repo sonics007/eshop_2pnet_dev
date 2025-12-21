@@ -9,6 +9,7 @@
 
 import { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import type { AdminUser, AdminLoginCredentials, AuthResult } from '../types';
+import { ADMIN_ACCOUNT_EVENT_KEY, ADMIN_ACCOUNT_STORAGE_KEY } from '@/lib/constants';
 
 const STORAGE_KEY = 'eshop-admin-auth';
 const SESSION_TIMEOUT = 30 * 60 * 1000; // 30 minút
@@ -38,37 +39,64 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
   const [requiresTwoFactor, setRequiresTwoFactor] = useState(false);
   const [pendingEmail, setPendingEmail] = useState<string | null>(null);
 
-  // Načítanie session z localStorage
+  // Načítanie session - prioritne z JWT cookies cez API, fallback na localStorage
   useEffect(() => {
     if (typeof window === 'undefined') {
       setIsLoading(false);
       return;
     }
 
-    try {
-      const stored = window.localStorage.getItem(STORAGE_KEY);
-      if (stored) {
-        const session: StoredSession = JSON.parse(stored);
+    async function checkSession() {
+      try {
+        // Najprv skús overiť JWT session cez API
+        const response = await fetch('/api/auth/admin/session', {
+          credentials: 'include' // Dôležité pre cookies
+        });
+        const result = await response.json();
 
-        // Kontrola expirácie
-        if (session.expiresAt > Date.now()) {
-          setAdmin(session.admin);
-          // Predĺženie session pri aktivite
-          const newSession: StoredSession = {
-            admin: session.admin,
+        if (result.success && result.authenticated && result.user) {
+          // Ak meno chýba, použijeme email, aby sa všade zobrazoval email
+          setAdmin({ ...result.user, name: result.user.name || result.user.email });
+          // Aktualizuj localStorage pre fallback
+          const session: StoredSession = {
+            admin: result.user,
             expiresAt: Date.now() + SESSION_TIMEOUT
           };
-          window.localStorage.setItem(STORAGE_KEY, JSON.stringify(newSession));
+          window.localStorage.setItem(STORAGE_KEY, JSON.stringify(session));
         } else {
-          // Expirovaná session
-          window.localStorage.removeItem(STORAGE_KEY);
+          // JWT session neplatná, skús localStorage ako fallback
+          const stored = window.localStorage.getItem(STORAGE_KEY);
+          if (stored) {
+            const session: StoredSession = JSON.parse(stored);
+            if (session.expiresAt > Date.now()) {
+              // Máme lokálnu session ale nie JWT - vyčisti lokálnu
+              // (užívateľ sa musí znova prihlásiť)
+            }
+            window.localStorage.removeItem(STORAGE_KEY);
+          }
         }
+      } catch (error) {
+        console.error('Failed to check session:', error);
+        // Pri chybe siete skús localStorage
+        try {
+          const stored = window.localStorage.getItem(STORAGE_KEY);
+          if (stored) {
+            const session: StoredSession = JSON.parse(stored);
+            if (session.expiresAt > Date.now()) {
+              setAdmin(session.admin);
+            } else {
+              window.localStorage.removeItem(STORAGE_KEY);
+            }
+          }
+        } catch {
+          // Ignoruj
+        }
+      } finally {
+        setIsLoading(false);
       }
-    } catch (error) {
-      console.error('Failed to restore admin auth:', error);
-    } finally {
-      setIsLoading(false);
     }
+
+    checkSession();
   }, []);
 
   const extendSession = useCallback((adminData: AdminUser) => {
@@ -91,6 +119,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
       const response = await fetch('/api/auth/admin/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // Dôležité pre nastavenie JWT cookies
         body: JSON.stringify(credentials)
       });
 
@@ -126,6 +155,7 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
       const response = await fetch('/api/auth/admin/verify-2fa', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include', // Dôležité pre nastavenie JWT cookies
         body: JSON.stringify({ email: pendingEmail, code })
       });
 
@@ -146,7 +176,18 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [pendingEmail, extendSession]);
 
-  const logout = useCallback(() => {
+  const logout = useCallback(async () => {
+    // Vymaž JWT cookies cez API
+    try {
+      await fetch('/api/auth/admin/logout', {
+        method: 'POST',
+        credentials: 'include'
+      });
+    } catch (error) {
+      console.error('Logout API error:', error);
+    }
+
+    // Vyčisti lokálny stav
     setAdmin(null);
     setRequiresTwoFactor(false);
     setPendingEmail(null);
@@ -177,6 +218,22 @@ export function AdminAuthProvider({ children }: { children: React.ReactNode }) {
       window.removeEventListener('keydown', handleActivity);
     };
   }, [admin, extendSession]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    if (admin) {
+      const payload = JSON.stringify({
+        id: admin.id,
+        name: admin.name || admin.email,
+        email: admin.email,
+        twoFactorEnabled: admin.twoFactorEnabled
+      });
+      window.localStorage.setItem(ADMIN_ACCOUNT_STORAGE_KEY, payload);
+    } else {
+      window.localStorage.removeItem(ADMIN_ACCOUNT_STORAGE_KEY);
+    }
+    window.dispatchEvent(new Event(ADMIN_ACCOUNT_EVENT_KEY));
+  }, [admin]);
 
   return (
     <AdminAuthContext.Provider

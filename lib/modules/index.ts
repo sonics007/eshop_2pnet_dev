@@ -91,7 +91,7 @@ export const productsModule: ModuleDefinition = {
   ],
   adminPanels: [
     { id: 'admin-products', label: 'Katalóg produktov', route: '/admin/products' },
-    { id: 'admin-categories', label: 'Kategórie', description: 'Správa kategórií a podkategórií' }
+    { id: 'admin-categories', label: 'Kategórie', description: 'Správa kategórií a podkategórií', route: '/admin/categories' }
   ]
 };
 
@@ -141,14 +141,53 @@ export const invoicesModule: ModuleDefinition = {
 
 export const chatModule: ModuleDefinition = {
   id: 'chat',
-  name: 'Interný chat',
-  description: 'Live chat pre zákazníkov (email notifikácie)',
+  name: 'Live chat',
+  description: 'Chat widget dostupný na celom webe',
   version: '1.0.0',
   enabled: true,
-  prismaModels: ['ChatSession', 'ChatMessage'],
+  prismaModels: [],
   apiNamespace: 'chat',
   adminPanels: [
-    { id: 'admin-chat', label: 'Chat nastavenia', description: 'Nastavenia live chatu' }
+    { id: 'admin-chat', label: 'Chat nastavenia', description: '- Tawk.to integrácia\n - Chatwoot integrácia', route: '/admin/chat' }
+  ]
+};
+
+export const emailModule: ModuleDefinition = {
+  id: 'email',
+  name: 'Email',
+  description: 'SMTP odosielanie, testy a viac adries podľa účelu',
+  version: '1.0.0',
+  enabled: true,
+  prismaModels: [],
+  apiNamespace: 'email',
+  adminPanels: [
+    { id: 'admin-email', label: 'Email', description: 'SMTP, adresy a test odoslania', route: '/admin/settings/email' }
+  ]
+};
+
+export const systemModule: ModuleDefinition = {
+  id: 'system',
+  name: 'Systém',
+  description: 'Údržba a reštart aplikácie',
+  version: '1.0.0',
+  enabled: true,
+  prismaModels: [],
+  apiNamespace: 'system',
+  adminPanels: [
+    { id: 'admin-restart', label: 'Reštart e-shopu', description: 'Reštart dev/procesu', route: '/admin/settings/restart' }
+  ]
+};
+
+export const issuesModule: ModuleDefinition = {
+  id: 'issues',
+  name: 'Hlásenia chýb',
+  description: 'Excel štýl tabuľky pre bugy s prioritami a stavmi',
+  version: '1.0.0',
+  enabled: true,
+  prismaModels: ['Issue'],
+  apiNamespace: 'issues',
+  adminPanels: [
+    { id: 'admin-issues', label: 'Hlásenia chýb', description: 'Nové, v riešení, vyriešené s prioritami 1-5', route: '/admin/issues' }
   ]
 };
 
@@ -166,7 +205,8 @@ export const sitePagesModule: ModuleDefinition = {
   adminPanels: [
     { id: 'admin-visual', label: 'Vizuál & pozadie', description: 'Hero pozadie a farby', route: '/admin/visual' },
     { id: 'admin-links', label: 'Linky & odkazy', description: 'Footer linky', route: '/admin/links' },
-    { id: 'admin-navigation', label: 'Menu', description: 'Hlavné menu eshopu', route: '/admin/menu' }
+    { id: 'admin-navigation', label: 'Menu', description: 'Hlavné menu eshopu', route: '/admin/menu' },
+    { id: 'admin-admin-menu', label: 'Admin menu', description: 'Menu v admin paneli', route: '/admin/admin-menu' }
   ]
 };
 
@@ -219,8 +259,8 @@ export const usersModule: ModuleDefinition = {
   prismaModels: ['User'],
   apiNamespace: 'users',
   adminPanels: [
-    { id: 'admin-admins', label: 'Administrátori', description: 'Správa admin účtov' },
-    { id: 'admin-customers', label: 'Zákazníci', description: 'Správa zákazníckych účtov' }
+    { id: 'admin-admins', label: 'Administrátori', description: 'Správa admin účtov', route: '/admin/users?tab=admins' },
+    { id: 'admin-customers', label: 'Zákazníci', description: 'Správa zákazníckych účtov', route: '/admin/users?tab=customers' }
   ],
   dependencies: ['auth-admin']
 };
@@ -237,6 +277,9 @@ export const MODULES: ModuleDefinition[] = [
   ordersModule,
   invoicesModule,
   chatModule,
+  emailModule,
+  systemModule,
+  issuesModule,
   // Site moduly - zoskupené pod "Stránka"
   sitePagesModule,
   // Legacy

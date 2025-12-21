@@ -4,10 +4,11 @@ import {
   writeVisualSettings,
   type VisualSettings
 } from '@/lib/modules/site/pages/visual';
+import { isAdminAuthenticated, unauthorizedResponse } from '@/lib/auth/middleware';
 
 /**
  * GET /api/site/visual
- * Načíta vizuálne nastavenia
+ * Načíta vizuálne nastavenia (verejné - potrebné pre frontend)
  */
 export async function GET() {
   try {
@@ -24,9 +25,14 @@ export async function GET() {
 
 /**
  * POST /api/site/visual
- * Zapíše vizuálne nastavenia
+ * Zapíše vizuálne nastavenia - vyžaduje admin autentifikáciu
  */
 export async function POST(request: Request) {
+  const admin = await isAdminAuthenticated();
+  if (!admin) {
+    return unauthorizedResponse('Prístup len pre administrátorov');
+  }
+
   try {
     const payload = await request.json() as Partial<VisualSettings>;
     const updated = await writeVisualSettings(payload);

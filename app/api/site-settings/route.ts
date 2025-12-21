@@ -25,7 +25,8 @@ export async function POST(request: Request) {
       primaryCtaLink: payload.hero?.primaryCtaLink ?? current.hero.primaryCtaLink,
       secondaryCtaLabel: payload.hero?.secondaryCtaLabel ?? current.hero.secondaryCtaLabel,
       secondaryCtaLink: payload.hero?.secondaryCtaLink ?? current.hero.secondaryCtaLink,
-      highlights: payload.hero?.highlights ?? current.hero.highlights
+      highlights: payload.hero?.highlights ?? current.hero.highlights,
+      secondaryHighlights: payload.hero?.secondaryHighlights ?? current.hero.secondaryHighlights
     },
     links: {
       logoPrimaryLink: payload.links?.logoPrimaryLink ?? current.links.logoPrimaryLink,

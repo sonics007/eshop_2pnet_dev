@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { readInvoiceTemplate } from '@/lib/invoiceTemplate';
 import { sampleInvoices, sampleOrders } from '@/lib/sampleData';
+import { calculateVat } from '@/lib/invoice';
 
 type DocumentInvoice = {
   invoiceNumber: string;
@@ -73,6 +74,8 @@ export async function GET(_: Request, { params }: { params: Promise<{ invoiceNum
       const sampleInvoice = sampleInvoices.find((item) => item.invoiceNumber === invoiceNumber);
       if (sampleInvoice) {
         const sampleOrder = sampleOrders.find((item) => item.id === sampleInvoice.orderId);
+        // sampleInvoice.total je BEZ DPH (netto cena)
+        const vatCalc = calculateVat(sampleInvoice.total, template.defaults.vatRate, false);
         invoice = {
           invoiceNumber: sampleInvoice.invoiceNumber,
           variableSymbol: sampleInvoice.variableSymbol,
@@ -82,9 +85,9 @@ export async function GET(_: Request, { params }: { params: Promise<{ invoiceNum
           issueDate: sampleInvoice.issueDate,
           dueDate: sampleInvoice.dueDate,
           supplyDate: sampleInvoice.issueDate,
-          basePrice: sampleInvoice.total / (1 + template.defaults.vatRate),
-          vatValue: sampleInvoice.total - sampleInvoice.total / (1 + template.defaults.vatRate),
-          totalPrice: sampleInvoice.total,
+          basePrice: vatCalc.baseValue,
+          vatValue: vatCalc.vat,
+          totalPrice: vatCalc.total,
           currency: sampleInvoice.currency,
           vatRate: template.defaults.vatRate * 100,
           items:

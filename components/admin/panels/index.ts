@@ -5,5 +5,4 @@
  */
 
 export { ChatSettingsPanel } from './ChatSettingsPanel';
-export { ChatSessionsPanel } from './ChatSessionsPanel';
 export { UsersPanel } from './UsersPanel';

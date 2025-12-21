@@ -31,6 +31,7 @@ model Product {
   tagline       String?
   description   String?
   price         Float
+  vatRate       Float        @default(20)
   currency      String       @default("EUR")
   badge         String?
   billingPeriod String?
@@ -54,14 +55,22 @@ model Product {
 model User {
   id               Int       @id @default(autoincrement())
   email            String    @unique
-  passwordHash     String
+  passwordHash     String?   // Nullable pre adminov čakajúcich na nastavenie hesla
   companyName      String
   ico              String?
   dic              String?
   vatId            String?
+  phone            String?
+  street           String?
+  city             String?
+  zip              String?
+  country          String?
+  paymentMethods   String?   @default("[]")
   role             String    @default("user")
   twoFactorEnabled Boolean   @default(false)
   twoFactorSecret  String?
+  invitationToken  String?   // Token pre nastavenie hesla pri vytvorení admina
+  invitationExpiry DateTime? // Platnosť tokenu (24h)
   createdAt        DateTime  @default(now())
   orders           Order[]
   invoices         Invoice[]
@@ -136,6 +145,22 @@ model Invoice {
   templateVersion String   @default("default")
 }
 
+model Issue {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String?
+  createdBy   String
+  resolvedBy  String?
+  resolutionNote String?
+  resolutionReplies String? @default("[]")
+  resolutionLocked Boolean @default(false)
+  status      String   @default("new") // new, in_progress, resolved
+  priority    Int      @default(3)     // 1-5 (1 najnižšia)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  resolvedAt  DateTime?
+}
+
 model ChatSession {
   id            Int           @id @default(autoincrement())
   sessionKey    String        @unique
@@ -165,3 +190,228 @@ model Config {
   updatedAt DateTime @updatedAt
 }
 
+// ==================== ANALYTICS MODULE ====================
+
+// Návštevnícka session - sleduje každého návštevníka
+model AnalyticsSession {
+  id            Int                @id @default(autoincrement())
+  sessionId     String             @unique // UUID pre identifikáciu session
+  visitorId     String?            // Trvalý identifikátor návštevníka (cookie)
+  userId        Int?               // Ak je prihlásený používateľ
+
+  // Geolokácia
+  country       String?            // Krajina (SK, CZ, DE, ...)
+  countryName   String?            // Názov krajiny
+  city          String?            // Mesto
+  region        String?            // Región
+
+  // Zariadenie a prehliadač
+  userAgent     String?
+  device        String?            // desktop, mobile, tablet
+  browser       String?            // Chrome, Firefox, Safari, ...
+  os            String?            // Windows, macOS, iOS, Android, ...
+  screenWidth   Int?
+  screenHeight  Int?
+
+  // Zdroj návštevy
+  referrer      String?            // Odkiaľ prišiel
+  utmSource     String?            // UTM zdroj
+  utmMedium     String?            // UTM médium
+  utmCampaign   String?            // UTM kampaň
+
+  // Časové údaje
+  startedAt     DateTime           @default(now())
+  endedAt       DateTime?
+  duration      Int?               // Dĺžka session v sekundách
+
+  // Vzťahy
+  pageViews     AnalyticsPageView[]
+  events        AnalyticsEvent[]
+
+  createdAt     DateTime           @default(now())
+  updatedAt     DateTime           @updatedAt
+}
+
+// Zobrazenia stránok
+model AnalyticsPageView {
+  id            Int               @id @default(autoincrement())
+  session       AnalyticsSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sessionId     Int
+
+  // Stránka
+  path          String            // URL cesta (/products/laptop)
+  title         String?           // Titulok stránky
+  pageType      String?           // home, product, category, cart, checkout, ...
+
+  // Produkt (ak je to produktová stránka)
+  productId     Int?
+  productSlug   String?
+  productName   String?
+  categoryId    Int?
+
+  // Čas
+  enteredAt     DateTime          @default(now())
+  exitedAt      DateTime?
+  timeOnPage    Int?              // Čas na stránke v sekundách
+  scrollDepth   Int?              // Maximálna hĺbka scrollovania v %
+
+  createdAt     DateTime          @default(now())
+}
+
+// Udalosti (add to cart, purchase, search, ...)
+model AnalyticsEvent {
+  id            Int               @id @default(autoincrement())
+  session       AnalyticsSession  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  sessionId     Int
+
+  // Typ udalosti
+  eventType     String            // view_product, add_to_cart, remove_from_cart,
+                                  // begin_checkout, purchase, search, click, ...
+
+  // Produkt (ak sa týka produktu)
+  productId     Int?
+  productSlug   String?
+  productName   String?
+  productPrice  Float?
+  quantity      Int?
+
+  // Objednávka (ak je purchase)
+  orderId       Int?
+  orderTotal    Float?
+
+  // Hľadanie
+  searchQuery   String?
+  searchResults Int?
+
+  // Extra dáta (JSON)
+  metadata      String?           // JSON pre dodatočné údaje
+
+  createdAt     DateTime          @default(now())
+}
+
+// Denné agregované štatistiky - pre rýchle načítanie
+model AnalyticsDailyStat {
+  id              Int      @id @default(autoincrement())
+  date            DateTime @unique // Dátum (bez času)
+
+  // Návštevnosť
+  sessions        Int      @default(0)  // Počet sessions
+  uniqueVisitors  Int      @default(0)  // Unikátni návštevníci
+  pageViews       Int      @default(0)  // Celkový počet zobrazení
+  avgSessionTime  Int      @default(0)  // Priemerný čas session v sek.
+  bounceRate      Float    @default(0)  // Bounce rate v %
+
+  // Konverzie
+  addToCart       Int      @default(0)  // Pridaní do košíka
+  checkouts       Int      @default(0)  // Začaté checkouty
+  purchases       Int      @default(0)  // Dokončené objednávky
+  revenue         Float    @default(0)  // Tržby
+  conversionRate  Float    @default(0)  // Konverzný pomer v %
+
+  // Zdroje (JSON pre flexibilitu)
+  countriesJson   String?  // JSON: {"SK": 120, "CZ": 80, ...}
+  devicesJson     String?  // JSON: {"desktop": 150, "mobile": 100, ...}
+  referrersJson   String?  // JSON: {"google": 80, "direct": 50, ...}
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+// Produktová štatistika - agregované pre každý produkt
+model AnalyticsProductStat {
+  id              Int      @id @default(autoincrement())
+  productId       Int
+  productSlug     String
+  productName     String
+  date            DateTime // Dátum
+
+  // Metriky
+  views           Int      @default(0)  // Počet zobrazení
+  uniqueViews     Int      @default(0)  // Unikátne zobrazenia
+  addToCart       Int      @default(0)  // Pridaní do košíka
+  purchases       Int      @default(0)  // Nákupy
+  revenue         Float    @default(0)  // Tržby z produktu
+  avgTimeOnPage   Int      @default(0)  // Priemerný čas na stránke
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([productId, date])
+}
+
+// Hľadania - čo ľudia hľadajú
+model AnalyticsSearch {
+  id            Int      @id @default(autoincrement())
+  query         String   // Hľadaný výraz
+  resultsCount  Int      @default(0)  // Počet výsledkov
+  clickedResult String?  // Na čo klikol (productSlug)
+  sessionId     Int?
+
+  createdAt     DateTime @default(now())
+
+  @@index([query])
+}
+
+// ==================== SEO MODULE ====================
+
+// SEO nastavenia pre jednotlivé stránky
+model SeoPage {
+  id              Int      @id @default(autoincrement())
+  path            String   @unique  // URL cesta (/produkty/laptop)
+  pageType        String?  // home, product, category, page, ...
+
+  // Meta tagy
+  metaTitle       String?  // <title>
+  metaDescription String?  // <meta name="description">
+  metaKeywords    String?  // <meta name="keywords">
+  canonicalUrl    String?  // <link rel="canonical">
+
+  // Open Graph (Facebook, LinkedIn)
+  ogTitle         String?
+  ogDescription   String?
+  ogImage         String?
+  ogType          String?  // website, product, article
+
+  // Twitter Card
+  twitterCard     String?  // summary, summary_large_image
+  twitterTitle    String?
+  twitterDescription String?
+  twitterImage    String?
+
+  // Robots
+  noIndex         Boolean  @default(false)
+  noFollow        Boolean  @default(false)
+
+  // Structured Data (JSON-LD)
+  structuredData  String?  // JSON string
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([pageType])
+}
+
+// URL presmerovania (301, 302)
+model SeoRedirect {
+  id          Int      @id @default(autoincrement())
+  fromPath    String   @unique  // Stará URL
+  toPath      String   // Nová URL
+  statusCode  Int      @default(301)  // 301 = permanent, 302 = temporary
+  enabled     Boolean  @default(true)
+  hits        Int      @default(0)  // Počet použití
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// Robots.txt pravidlá
+model SeoRobotsRule {
+  id          Int      @id @default(autoincrement())
+  userAgent   String   @default("*")
+  directive   String   // Allow, Disallow, Crawl-delay
+  path        String   // Cesta
+  enabled     Boolean  @default(true)
+  order       Int      @default(0)
+
+  createdAt   DateTime @default(now())
+}

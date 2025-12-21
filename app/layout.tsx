@@ -1,21 +1,12 @@
 ﻿import type { Metadata } from 'next';
 import type { ReactNode } from 'react';
-import dynamic from 'next/dynamic';
 import { Inter } from 'next/font/google';
 import './globals.css';
 import { LanguageProvider } from '@/components/LanguageContext';
-import { AuthProvider } from '@/components/AuthContext';
+import { CustomerAuthProvider } from '@/lib/modules/auth/customer/context';
 import { CartProvider } from '@/components/CartContext';
-
-// Lazy-load chat komponenty - načítajú sa až po hlavnom obsahu
-// V Next.js 16+ sa ssr: false už nepodporuje v Server Components
-const FloatingChatTrigger = dynamic(
-  () => import('@/components/FloatingChatTrigger').then(mod => ({ default: mod.FloatingChatTrigger }))
-);
-
-const TawkToWidget = dynamic(
-  () => import('@/components/TawkToWidget')
-);
+import { ChatWidgetLoader } from '@/components/ChatWidgetLoader';
+import AnalyticsTracker from '@/components/AnalyticsTracker';
 
 const inter = Inter({
   subsets: ['latin'],
@@ -34,13 +25,13 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="sk" className={inter.variable}>
       <body className="bg-slate-50 text-slate-900 antialiased">
         <LanguageProvider>
-          <AuthProvider>
+          <CustomerAuthProvider>
             <CartProvider>
               {children}
-              <FloatingChatTrigger />
-              <TawkToWidget />
+              <ChatWidgetLoader />
+              <AnalyticsTracker />
             </CartProvider>
-          </AuthProvider>
+          </CustomerAuthProvider>
         </LanguageProvider>
       </body>
     </html>

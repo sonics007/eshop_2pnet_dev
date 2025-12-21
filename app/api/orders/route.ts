@@ -3,8 +3,19 @@ import { prisma } from '@/lib/prisma';
 import { sampleOrders } from '@/lib/sampleData';
 import { mapStatus, reverseStatus } from '@/lib/orderStatus';
 import type { AdminOrder } from '@/types/orders';
+import { isAdminAuthenticated, unauthorizedResponse } from '@/lib/auth/middleware';
 
+/**
+ * GET /api/orders
+ * Zoznam objednávok - vyžaduje admin autentifikáciu
+ */
 export async function GET() {
+  // Overenie admin prístupu
+  const admin = await isAdminAuthenticated();
+  if (!admin) {
+    return unauthorizedResponse('Prístup len pre administrátorov');
+  }
+
   try {
     const orders = await prisma.order.findMany({
       include: {

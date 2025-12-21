@@ -15,7 +15,9 @@ export type {
   UserAuthMethod,
   UsersListResponse,
   UserResponse,
-  TwoFAResponse
+  TwoFAResponse,
+  AdminInviteResult,
+  SetPasswordInput
 } from './types';
 
 // Service funkcie - len pre server-side import

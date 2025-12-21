@@ -3,16 +3,10 @@
 import Image from 'next/image';
 import Link from 'next/link';
 import { useState } from 'react';
-import { Product } from '@/types/product';
+import type { Product } from '@/types/product';
 import { useLanguage } from '@/components/LanguageContext';
 import { useCart } from '@/components/CartContext';
-
-const formatPrice = (value: number, currency: string, locale: string) =>
-  new Intl.NumberFormat(locale, {
-    style: 'currency',
-    currency,
-    minimumFractionDigits: 0
-  }).format(value);
+import { formatLocalizedPrice, getLocalizedPrice } from '@/lib/pricing';
 
 const buttonCopy = {
   sk: { add: 'Pridať do košíka', added: 'Pridané' },
@@ -24,7 +18,6 @@ export function ProductCard({ product }: { product: Product }) {
   const [added, setAdded] = useState(false);
   const [quantity, setQuantity] = useState(1);
   const labels = buttonCopy[language];
-  const locale = language === 'cz' ? 'cs-CZ' : 'sk-SK';
   const { addItem } = useCart();
   const translation = product.translations?.[language];
   const productName = translation?.name ?? product.name;
@@ -32,9 +25,16 @@ export function ProductCard({ product }: { product: Product }) {
   const badge = translation?.badge ?? product.badge;
   const specs = translation?.specs?.length ? translation.specs : product.specs;
 
+  // Získanie lokalizovanej ceny a meny podľa jazyka
+  const localizedPrice = getLocalizedPrice(product, language);
+
   const handleAdd = () => {
     console.info('[Cart] add', product.slug, 'qty', quantity);
-    addItem({ ...product, name: productName }, quantity);
+    addItem(
+      { ...product, name: productName },
+      quantity,
+      { price: localizedPrice.price, currency: localizedPrice.currency }
+    );
     setAdded(true);
     setTimeout(() => setAdded(false), 1800);
   };
@@ -47,9 +47,9 @@ export function ProductCard({ product }: { product: Product }) {
             <Image
               src={product.image}
               alt={productName}
-              width={600}
-              height={400}
-              className="h-56 w-full object-cover transition group-hover:scale-[1.02]"
+              width={800}
+              height={600}
+              className="h-56 w-full object-contain transition group-hover:scale-[1.01] bg-white"
             />
           ) : (
             <div className="flex h-56 w-full items-center justify-center text-sm text-slate-400">Bez vizuálu</div>
@@ -74,8 +74,15 @@ export function ProductCard({ product }: { product: Product }) {
       <div className="mt-auto space-y-3 pt-6">
         <div className="flex items-center justify-between">
           <div>
+            <p className="text-xs text-slate-500">
+              bez DPH: {formatLocalizedPrice(localizedPrice.price, localizedPrice.currency, localizedPrice.locale)}
+            </p>
             <span className="text-2xl font-semibold text-slate-900">
-              {formatPrice(product.price, product.currency, locale)}
+              {formatLocalizedPrice(
+                localizedPrice.price * (1 + (product.vatRate ?? 20) / 100),
+                localizedPrice.currency,
+                localizedPrice.locale
+              )}
             </span>
             {product.billingPeriod && (
               <span className="ml-1 text-sm text-slate-400">/ {product.billingPeriod}</span>

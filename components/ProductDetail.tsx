@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from 'react';
 import type { Product } from '@/types/product';
 import { useCart } from '@/components/CartContext';
 import { useLanguage } from '@/components/LanguageContext';
+import { formatLocalizedPrice, getLocalizedPrice } from '@/lib/pricing';
 
 const detailCopy = {
   sk: {
@@ -49,6 +50,9 @@ export function ProductDetail({ product }: Props) {
   const specs = translation?.specs?.length ? translation.specs : product.specs;
   const promotion = translation?.promotion ?? product.promotion;
 
+  // Získanie lokalizovanej ceny a meny podľa jazyka
+  const localizedPrice = getLocalizedPrice(product, language);
+
   const gallerySources = useMemo(() => {
     const unique = new Set<string>();
     if (product.image) unique.add(product.image);
@@ -72,7 +76,11 @@ export function ProductDetail({ product }: Props) {
 
   const handleAdd = () => {
     console.info('[Cart] add detail', product.slug, 'qty', quantity);
-    addItem({ ...product, name: productName }, quantity);
+    addItem(
+      { ...product, name: productName },
+      quantity,
+      { price: localizedPrice.price, currency: localizedPrice.currency }
+    );
     setAdded(true);
     setTimeout(() => setAdded(false), 1500);
   };
@@ -86,9 +94,10 @@ export function ProductDetail({ product }: Props) {
               <Image
                 src={activeImage}
                 alt={productName}
-                width={900}
-                height={700}
-                className="h-[420px] w-full object-cover"
+                width={1200}
+                height={900}
+                className="h-[460px] w-full object-contain bg-white"
+                sizes="(max-width: 1024px) 100vw, 60vw"
                 priority
               />
             ) : (
@@ -110,7 +119,13 @@ export function ProductDetail({ product }: Props) {
                       activeIndex === index ? 'border-slate-900' : 'border-transparent opacity-60 hover:opacity-100'
                     }`}
                   >
-                    <Image src={src} alt={`${productName} ${index + 1}`} width={120} height={120} className="h-full w-full object-cover" />
+                    <Image
+                      src={src}
+                      alt={`${productName} ${index + 1}`}
+                      width={140}
+                      height={140}
+                      className="h-full w-full object-contain bg-white"
+                    />
                   </button>
                 ))}
               </div>
@@ -124,16 +139,22 @@ export function ProductDetail({ product }: Props) {
             {tagline && <p className="mt-2 text-base text-slate-600">{tagline}</p>}
           </div>
           <div className="flex flex-wrap items-center gap-4">
-            <p className="text-3xl font-semibold text-slate-900">
-              {new Intl.NumberFormat(language === 'cz' ? 'cs-CZ' : 'sk-SK', {
-                style: 'currency',
-                currency: product.currency.replace(/[^A-Z]/gi, '') || 'EUR',
-                minimumFractionDigits: 0
-              }).format(product.price)}
-              {product.billingPeriod && (
-                <span className="text-base font-normal text-slate-500"> / {product.billingPeriod}</span>
-              )}
-            </p>
+            <div>
+              <p className="text-sm text-slate-500">
+                {language === 'cz' ? 'bez DPH:' : 'bez DPH:'}{' '}
+                {formatLocalizedPrice(localizedPrice.price, localizedPrice.currency, localizedPrice.locale)}
+              </p>
+              <p className="text-3xl font-semibold text-slate-900">
+                {formatLocalizedPrice(
+                  localizedPrice.price * (1 + (product.vatRate ?? 20) / 100),
+                  localizedPrice.currency,
+                  localizedPrice.locale
+                )}
+                {product.billingPeriod && (
+                  <span className="text-base font-normal text-slate-500"> / {product.billingPeriod}</span>
+                )}
+              </p>
+            </div>
             <span className="rounded-full border border-slate-200 px-3 py-1 text-xs font-semibold text-slate-600">
               {product.stock && product.stock > 0 ? text.availabilityInStock : text.availabilityOnDemand}
             </span>

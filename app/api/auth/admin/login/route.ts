@@ -3,6 +3,7 @@ import { prisma } from '@/lib/prisma';
 import { authenticator } from 'otplib';
 import bcrypt from 'bcryptjs';
 import type { AdminUser, AuthResult } from '@/lib/modules/auth/types';
+import { createAccessToken, createRefreshToken } from '@/lib/auth/jwt';
 
 /**
  * POST /api/auth/admin/login
@@ -60,6 +61,14 @@ export async function POST(request: Request) {
       }, { status: 401 });
     }
 
+    // Kontrola či má používateľ nastavené heslo (invitation pending)
+    if (!user.passwordHash) {
+      return NextResponse.json<AuthResult>({
+        success: false,
+        error: 'Účet čaká na aktiváciu. Skontrolujte email s odkazom na nastavenie hesla.'
+      }, { status: 401 });
+    }
+
     // Overenie hesla - podporuje bcrypt hash aj plain text (pre migráciu)
     let isValid = false;
     if (user.passwordHash.startsWith('$2')) {
@@ -114,10 +123,44 @@ export async function POST(request: Request) {
       permissions: []
     };
 
-    return NextResponse.json<AuthResult>({
+    // Vytvor JWT tokeny
+    const accessToken = await createAccessToken({
+      userId: user.id,
+      email: user.email,
+      role: 'admin'
+    });
+    const refreshToken = await createRefreshToken({
+      userId: user.id,
+      email: user.email,
+      role: 'admin'
+    });
+
+    // Vytvor response a nastav cookies priamo na ňom
+    const response = NextResponse.json<AuthResult>({
       success: true,
       user: adminUser
     });
+
+    // Nastav HTTP-only cookies priamo na response
+    const isProduction = process.env.NODE_ENV === 'production';
+
+    response.cookies.set('eshop-access-token', accessToken, {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: 'lax',
+      maxAge: 60 * 60, // 1 hodina
+      path: '/'
+    });
+
+    response.cookies.set('eshop-refresh-token', refreshToken, {
+      httpOnly: true,
+      secure: isProduction,
+      sameSite: 'lax',
+      maxAge: 60 * 60 * 24 * 7, // 7 dní
+      path: '/'
+    });
+
+    return response;
   } catch (error) {
     if (process.env.NODE_ENV === 'development') {
       console.error('Admin login error:', error);

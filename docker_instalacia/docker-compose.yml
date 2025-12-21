@@ -1,0 +1,54 @@
+# ============================================
+# ESHOP - Docker Compose Configuration
+# ============================================
+#
+# Spustenie:
+#   docker compose up -d
+#
+# Build z repozitára:
+#   docker compose up -d --build
+#
+# Logy:
+#   docker compose logs -f eshop
+#
+# ============================================
+
+version: '3.8'
+
+services:
+  eshop:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: eshop
+    ports:
+      - "${PORT:-3000}:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=file:/app/data/eshop.db
+    env_file:
+      - .env
+    volumes:
+      # Perzistentné dáta
+      - eshop-data:/app/data
+      - eshop-uploads:/app/public/uploads
+    restart: unless-stopped
+    networks:
+      - eshop-network
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  eshop-data:
+    name: eshop-data
+  eshop-uploads:
+    name: eshop-uploads
+
+networks:
+  eshop-network:
+    name: eshop-network
+    driver: bridge

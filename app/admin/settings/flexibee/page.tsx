@@ -1,9 +1,7 @@
 ﻿'use client';
 
-import Link from 'next/link';
 import { useEffect, useState } from 'react';
-import { Navbar } from '@/components/Navbar';
-import { Footer } from '@/components/Footer';
+import { AdminLayout } from '@/components/admin/AdminLayout';
 
 type StatusResponse = {
   configured: boolean;
@@ -87,22 +85,15 @@ export default function FlexibeeSettingsPage() {
   };
 
   return (
-    <div className="bg-slate-50">
-      <Navbar />
-      <main className="mx-auto max-w-4xl px-6 py-16">
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Integrácie</p>
-            <h1 className="text-4xl font-semibold text-slate-900">Nastavenie ABRA Flexi</h1>
-            <p className="mt-2 text-sm text-slate-500">
-              Tu nakonfigurujete prístupové údaje API. Údaje sa ukladajú do lokálneho konfiguračného súboru v priečinku
-              data/.
-            </p>
-          </div>
-          <Link href="/admin" className="rounded-full border border-slate-200 px-4 py-2 text-sm text-slate-600">
-            ← Späť do admin panelu
-          </Link>
-        </div>
+    <AdminLayout activePanel="admin-flexi">
+      <div className="mb-8">
+        <p className="text-xs uppercase tracking-[0.3em] text-slate-400">Integrácie</p>
+        <h1 className="text-4xl font-semibold text-slate-900">Nastavenie ABRA Flexi</h1>
+        <p className="mt-2 text-sm text-slate-500">
+          Tu nakonfigurujete prístupové údaje API. Údaje sa ukladajú do lokálneho konfiguračného súboru v priečinku
+          data/.
+        </p>
+      </div>
 
         <section className="mt-8 space-y-6 rounded-3xl border border-slate-200 bg-white p-6 shadow-card">
           <div>
@@ -195,8 +186,6 @@ export default function FlexibeeSettingsPage() {
             </form>
           )}
         </section>
-      </main>
-      <Footer />
-    </div>
+    </AdminLayout>
   );
 }

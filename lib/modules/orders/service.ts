@@ -16,6 +16,35 @@ import type {
   CreateOrderData
 } from './types';
 
+type DbOrderStatus = 'PRIJATA' | 'SPRACOVANIE' | 'EXPEDOVANA' | 'DOKONCENA' | 'STORNOVANA';
+
+const DEFAULT_DB_STATUS: DbOrderStatus = 'PRIJATA';
+
+const dbToOrderStatusMap: Record<DbOrderStatus, OrderStatus> = {
+  PRIJATA: 'new',
+  SPRACOVANIE: 'processing',
+  EXPEDOVANA: 'shipped',
+  DOKONCENA: 'delivered',
+  STORNOVANA: 'cancelled'
+};
+
+const orderToDbStatusMap: Record<OrderStatus, DbOrderStatus> = {
+  new: 'PRIJATA',
+  confirmed: 'SPRACOVANIE',
+  processing: 'SPRACOVANIE',
+  shipped: 'EXPEDOVANA',
+  delivered: 'DOKONCENA',
+  cancelled: 'STORNOVANA'
+};
+
+const mapDbStatus = (status: string): OrderStatus => {
+  return dbToOrderStatusMap[status as DbOrderStatus] ?? 'new';
+};
+
+const toDbStatus = (status: OrderStatus): DbOrderStatus => {
+  return orderToDbStatusMap[status] ?? DEFAULT_DB_STATUS;
+};
+
 // ===============================
 // HELPERS
 // ===============================
@@ -60,7 +89,7 @@ function mapOrder(o: {
     externalId: o.externalId,
     customerName: o.customerName,
     customerEmail: o.email,
-    status: o.status as OrderStatus,
+    status: mapDbStatus(o.status),
     total: o.total,
     paymentMethod: o.paymentMethod || undefined,
     userId: o.userId || undefined,
@@ -75,7 +104,7 @@ function mapOrder(o: {
     history: o.history.map(h => ({
       id: h.id,
       orderId: h.orderId,
-      status: h.status as OrderStatus,
+      status: mapDbStatus(h.status),
       note: h.note || undefined,
       timestamp: h.timestamp
     })),
@@ -96,7 +125,7 @@ export async function getOrders(
   const where: Record<string, unknown> = {};
 
   if (filter.status) {
-    where.status = filter.status;
+    where.status = toDbStatus(filter.status);
   }
 
   if (filter.userId) {
@@ -175,7 +204,7 @@ export async function createOrder(data: CreateOrderData): Promise<Order> {
       externalId: generateExternalId(),
       customerName: data.customerName,
       email: data.customerEmail,
-      status: 'new',
+      status: toDbStatus('new'),
       total,
       paymentMethod: data.paymentMethod || 'unspecified',
       userId: data.userId || null,
@@ -189,7 +218,7 @@ export async function createOrder(data: CreateOrderData): Promise<Order> {
       },
       history: {
         create: {
-          status: 'new',
+          status: toDbStatus('new'),
           note: 'Objednávka vytvorená'
         }
       }
@@ -213,7 +242,7 @@ export async function updateOrderStatus(
     await prisma.orderHistory.create({
       data: {
         orderId: id,
-        status,
+        status: toDbStatus(status),
         note: note || null
       }
     });
@@ -221,7 +250,7 @@ export async function updateOrderStatus(
     // Aktualizuj status objednávky
     const order = await prisma.order.update({
       where: { id },
-      data: { status },
+      data: { status: toDbStatus(status) },
       include: {
         items: true,
         history: { orderBy: { timestamp: 'desc' } }
@@ -279,7 +308,8 @@ export async function getOrderStats(): Promise<OrderStats> {
   };
 
   statusCounts.forEach(s => {
-    ordersByStatus[s.status as OrderStatus] = s._count.status;
+    const key = mapDbStatus(s.status);
+    ordersByStatus[key] = s._count.status;
   });
 
   return {

@@ -2,7 +2,7 @@
 import { readFile } from 'fs/promises';
 import path from 'path';
 import { defaultSiteSettings } from '../lib/siteSettingsShared';
-import { defaultChatSettings } from '../lib/chatSettingsShared';
+import { defaultChatSettings } from '../lib/modules/chat';
 import { defaultFlexibeeSettings } from '../lib/flexibeeSettings';
 import { defaultInvoiceTemplate } from '../lib/invoiceTemplate';
 import { defaultAdminMenu } from '../lib/adminMenuDefaults';

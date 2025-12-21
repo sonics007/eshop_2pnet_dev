@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import bcrypt from 'bcryptjs';
 import type { CustomerUser, AuthResult } from '@/lib/modules/auth/types';
 
 /**
@@ -37,9 +38,16 @@ export async function POST(request: Request) {
       }, { status: 401 });
     }
 
-    // TODO: V produkcii použiť bcrypt.compare
-    // Pre teraz jednoduchá kontrola (heslo je uložené ako hash)
-    const isValid = user.passwordHash === password;
+    // Kontrola či má používateľ nastavené heslo
+    if (!user.passwordHash) {
+      return NextResponse.json<AuthResult>({
+        success: false,
+        error: 'Nesprávny email alebo heslo'
+      }, { status: 401 });
+    }
+
+    // Overenie hesla pomocou bcrypt
+    const isValid = await bcrypt.compare(password, user.passwordHash);
 
     if (!isValid) {
       return NextResponse.json<AuthResult>({
@@ -55,7 +63,12 @@ export async function POST(request: Request) {
       companyName: user.companyName,
       ico: user.ico || undefined,
       dic: user.dic || undefined,
-      vatId: user.vatId || undefined
+      vatId: user.vatId || undefined,
+      phone: user.phone || undefined,
+      street: user.street || undefined,
+      city: user.city || undefined,
+      zip: user.zip || undefined,
+      country: user.country || undefined
     };
 
     return NextResponse.json<AuthResult>({

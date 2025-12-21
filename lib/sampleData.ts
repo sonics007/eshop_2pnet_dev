@@ -6,7 +6,7 @@ export const sampleOrders: AdminOrder[] = [
     customer: 'Inova Systems s.r.o.',
     companyId: 'SK1234567890',
     email: 'it@inovasystems.eu',
-    status: 'Spracovanie',
+    status: 'processing',
     total: 6890,
     items: [
       { name: '2PN FortiEdge X5', quantity: 1, price: 3490 },
@@ -14,8 +14,8 @@ export const sampleOrders: AdminOrder[] = [
       { name: 'Pulse Monitoring 24/7', quantity: 1, price: 1490 }
     ],
     history: [
-      { status: 'Prijatá', timestamp: '2025-01-12 09:04', note: 'objednávka vytvorená v e-shope' },
-      { status: 'Spracovanie', timestamp: '2025-01-12 11:22', note: 'rezervácia skladov, čaká na faktúru' }
+      { status: 'new', timestamp: '2025-01-12 09:04', note: 'objednávka vytvorená v e-shope' },
+      { status: 'processing', timestamp: '2025-01-12 11:22', note: 'rezervácia skladov, čaká na faktúru' }
     ],
     paymentMethod: 'Faktúra 14 dní',
     invoiceNumber: 'FA-2025-00021',
@@ -26,13 +26,13 @@ export const sampleOrders: AdminOrder[] = [
     customer: 'TechNordic a.s.',
     companyId: 'CZ87654321',
     email: 'purchase@technordic.cz',
-    status: 'Expedovaná',
+    status: 'shipped',
     total: 5590,
     items: [{ name: 'Nebula Edge Server', quantity: 1, price: 5590 }],
     history: [
-      { status: 'Prijatá', timestamp: '2025-01-10 08:15' },
-      { status: 'Spracovanie', timestamp: '2025-01-10 10:32', note: 'synchronizované s ERP' },
-      { status: 'Expedovaná', timestamp: '2025-01-11 15:05', note: 'zásielka DPD #55231' }
+      { status: 'new', timestamp: '2025-01-10 08:15' },
+      { status: 'processing', timestamp: '2025-01-10 10:32', note: 'synchronizované s ERP' },
+      { status: 'shipped', timestamp: '2025-01-11 15:05', note: 'zásielka DPD #55231' }
     ],
     paymentMethod: 'Faktúra 30 dní',
     invoiceNumber: 'FA-2025-00022',
@@ -43,13 +43,13 @@ export const sampleOrders: AdminOrder[] = [
     customer: 'RetailHub s.r.o.',
     companyId: 'SK9999999999',
     email: 'orders@retailhub.sk',
-    status: 'Prijatá',
+    status: 'new',
     total: 2750,
     items: [
       { name: 'SkyWiFi 6E Pro', quantity: 3, price: 890 },
       { name: 'Pulse Monitoring 24/7', quantity: 1, price: 80 }
     ],
-    history: [{ status: 'Prijatá', timestamp: '2025-01-13 16:43' }],
+    history: [{ status: 'new', timestamp: '2025-01-13 16:43' }],
     paymentMethod: 'Faktúra 14 dní',
     invoiceNumber: '—',
     assignedTo: 'Sales Support'

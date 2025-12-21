@@ -7,6 +7,7 @@
  */
 
 import { useState, useEffect } from 'react';
+import { emitAdminNotification, postAdminNotification } from '@/lib/adminNotifications';
 
 interface User {
   id: number;
@@ -15,9 +16,11 @@ interface User {
   ico?: string;
   dic?: string;
   vatId?: string;
+  paymentMethods?: string[];
   role: string;
   twoFactorEnabled: boolean;
   createdAt: string;
+  hasPassword?: boolean;  // Pre admin invitation status
 }
 
 interface TwoFASetup {
@@ -36,11 +39,17 @@ export function UsersPanel({ filterRole, title, onSave }: UsersPanelProps) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+  const [resendingId, setResendingId] = useState<number | null>(null);
 
   // Editácia / vytvorenie
   const [editUser, setEditUser] = useState<Partial<User> | null>(null);
   const [isCreating, setIsCreating] = useState(false);
   const [newPassword, setNewPassword] = useState('');
+  const paymentOptions = [
+    { id: 'bank_transfer', label: 'Bankový prevod' },
+    { id: 'invoice', label: 'Faktúra' },
+    { id: 'card', label: 'Platba kartou' }
+  ];
 
   // 2FA setup
   const [twoFAUser, setTwoFAUser] = useState<User | null>(null);
@@ -81,9 +90,32 @@ export function UsersPanel({ filterRole, title, onSave }: UsersPanelProps) {
       email: '',
       companyName: '',
       role: filterRole || 'user',
-      twoFactorEnabled: false
+      twoFactorEnabled: false,
+      paymentMethods: []
     });
     setNewPassword('');
+  };
+
+  const handleResendInvitation = async (user: User) => {
+    setResendingId(user.id);
+    try {
+      const response = await fetch('/api/users/resend-invitation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: user.id })
+      });
+      const result = await response.json();
+      if (result.success) {
+        setMessage({ type: 'success', text: 'Pozývací email bol znovu odoslaný' });
+      } else {
+        setMessage({ type: 'error', text: result.error || 'Odoslanie zlyhalo' });
+      }
+    } catch (error) {
+      console.error('Resend invitation error:', error);
+      setMessage({ type: 'error', text: 'Chyba servera' });
+    } finally {
+      setResendingId(null);
+    }
   };
 
   const handleEdit = (user: User) => {
@@ -95,10 +127,57 @@ export function UsersPanel({ filterRole, title, onSave }: UsersPanelProps) {
   const handleSave = async () => {
     if (!editUser) return;
 
+    // Administrátori: minimal set (email + 2FA), heslo cez invitation
+    const isAdminPanel = filterRole === 'admin';
+
     setSaving(true);
     try {
       if (isCreating) {
-        // Vytvor nového
+        // Pre adminov - bez hesla (pošle sa invitation email)
+        if (isAdminPanel) {
+          if (!editUser.email) {
+            setMessage({ type: 'error', text: 'Email je povinný' });
+            setSaving(false);
+            return;
+          }
+
+          const response = await fetch('/api/users', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              email: editUser.email,
+              companyName: editUser.companyName || editUser.email.split('@')[0],
+              role: 'admin'
+            })
+          });
+
+          const result = await response.json();
+          if (result.success) {
+            const baseMsg = result.invitationSent
+              ? 'Administrátor vytvorený. Pozvánka bola odoslaná na email.'
+              : result.invitationError
+                ? `Administrátor vytvorený, ale email sa nepodarilo odoslať: ${result.invitationError}`
+                : 'Administrátor vytvorený';
+            setMessage({ type: 'success', text: baseMsg });
+            emitAdminNotification({
+              message: `Admin ${editUser.email} bol vytvorený.`,
+              type: 'success'
+            });
+            postAdminNotification({
+              message: `Admin ${editUser.email} bol vytvorený.`,
+              type: 'success'
+            });
+            setEditUser(null);
+            loadUsers();
+            onSave?.();
+          } else {
+            setMessage({ type: 'error', text: result.error || 'Chyba pri vytváraní' });
+          }
+          setSaving(false);
+          return;
+        }
+
+        // Pre bežných používateľov - heslo je povinné
         if (!newPassword) {
           setMessage({ type: 'error', text: 'Heslo je povinné' });
           setSaving(false);
@@ -110,6 +189,7 @@ export function UsersPanel({ filterRole, title, onSave }: UsersPanelProps) {
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             ...editUser,
+            role: editUser.role || 'user',
             password: newPassword
           })
         });
@@ -117,6 +197,14 @@ export function UsersPanel({ filterRole, title, onSave }: UsersPanelProps) {
         const result = await response.json();
         if (result.success) {
           setMessage({ type: 'success', text: 'Používateľ vytvorený' });
+          emitAdminNotification({
+            message: `Používateľ ${editUser.email} bol vytvorený.`,
+            type: 'success'
+          });
+          postAdminNotification({
+            message: `Používateľ ${editUser.email} bol vytvorený.`,
+            type: 'success'
+          });
           setEditUser(null);
           loadUsers();
           onSave?.();
@@ -129,6 +217,14 @@ export function UsersPanel({ filterRole, title, onSave }: UsersPanelProps) {
         if (newPassword) {
           payload.password = newPassword;
         }
+        if (isAdminPanel) {
+          payload.role = 'admin';
+          payload.paymentMethods = [];
+          payload.ico = '';
+          payload.dic = '';
+          payload.vatId = '';
+          payload.companyName = editUser.companyName || '';
+        }
 
         const response = await fetch(`/api/users/${editUser.id}`, {
           method: 'PUT',
@@ -139,6 +235,14 @@ export function UsersPanel({ filterRole, title, onSave }: UsersPanelProps) {
         const result = await response.json();
         if (result.success) {
           setMessage({ type: 'success', text: 'Používateľ uložený' });
+          emitAdminNotification({
+            message: `Používateľ ${editUser.email} bol upravený.`,
+            type: 'success'
+          });
+          postAdminNotification({
+            message: `Používateľ ${editUser.email} bol upravený.`,
+            type: 'success'
+          });
           setEditUser(null);
           loadUsers();
           onSave?.();
@@ -165,6 +269,14 @@ export function UsersPanel({ filterRole, title, onSave }: UsersPanelProps) {
 
       if (result.success) {
         setMessage({ type: 'success', text: 'Používateľ zmazaný' });
+        emitAdminNotification({
+          message: `Používateľ ${user.email} bol vymazaný.`,
+          type: 'error'
+        });
+        postAdminNotification({
+          message: `Používateľ ${user.email} bol vymazaný.`,
+          type: 'error'
+        });
         loadUsers();
       } else {
         setMessage({ type: 'error', text: result.error || 'Chyba pri mazaní' });
@@ -297,6 +409,14 @@ export function UsersPanel({ filterRole, title, onSave }: UsersPanelProps) {
               <div className="flex-1 min-w-[200px]">
                 <p className="font-medium text-slate-900">{user.companyName}</p>
                 <p className="text-sm text-slate-500">{user.email}</p>
+                {filterRole !== 'admin' && user.paymentMethods && user.paymentMethods.length > 0 && (
+                  <p className="text-xs text-slate-500">
+                    Platby: {user.paymentMethods.map((m) => {
+                      const opt = paymentOptions.find((o) => o.id === m);
+                      return opt ? opt.label : m;
+                    }).join(', ')}
+                  </p>
+                )}
               </div>
               <div className="flex items-center gap-2">
                 <span className={`rounded-full px-2 py-0.5 text-xs font-medium ${
@@ -308,6 +428,15 @@ export function UsersPanel({ filterRole, title, onSave }: UsersPanelProps) {
                   <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">
                     2FA
                   </span>
+                )}
+                {user.role === 'admin' && !user.twoFactorEnabled && (
+                  <button
+                    onClick={() => handleResendInvitation(user)}
+                    disabled={resendingId === user.id}
+                    className="rounded-lg border border-slate-200 px-3 py-1 text-xs text-slate-600 hover:bg-slate-50 disabled:opacity-50"
+                  >
+                    {resendingId === user.id ? 'Odosielam...' : 'Resend link'}
+                  </button>
                 )}
               </div>
               <div className="flex gap-1">
@@ -364,71 +493,121 @@ export function UsersPanel({ filterRole, title, onSave }: UsersPanelProps) {
                 />
               </div>
 
-              <div>
-                <label className="block text-sm font-medium text-slate-700">Meno / Firma *</label>
-                <input
-                  type="text"
-                  value={editUser.companyName || ''}
-                  onChange={(e) => setEditUser({ ...editUser, companyName: e.target.value })}
-                  className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-2 text-sm focus:border-slate-900 focus:outline-none"
-                  placeholder="Názov firmy alebo meno"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-slate-700">
-                  {isCreating ? 'Heslo *' : 'Nové heslo (nechať prázdne = bez zmeny)'}
-                </label>
-                <input
-                  type="password"
-                  value={newPassword}
-                  onChange={(e) => setNewPassword(e.target.value)}
-                  className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-2 text-sm focus:border-slate-900 focus:outline-none"
-                  placeholder={isCreating ? 'Zadajte heslo' : 'Nové heslo'}
-                />
-              </div>
-
-              <div className="grid grid-cols-3 gap-2">
+              {filterRole !== 'admin' && (
                 <div>
-                  <label className="block text-sm font-medium text-slate-700">IČO</label>
+                  <label className="block text-sm font-medium text-slate-700">Meno / Firma *</label>
                   <input
                     type="text"
-                    value={editUser.ico || ''}
-                    onChange={(e) => setEditUser({ ...editUser, ico: e.target.value })}
-                    className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none"
+                    value={editUser.companyName || ''}
+                    onChange={(e) => setEditUser({ ...editUser, companyName: e.target.value })}
+                    className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-2 text-sm focus:border-slate-900 focus:outline-none"
+                    placeholder="Názov firmy alebo meno"
                   />
                 </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700">DIČ</label>
-                  <input
-                    type="text"
-                    value={editUser.dic || ''}
-                    onChange={(e) => setEditUser({ ...editUser, dic: e.target.value })}
-                    className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none"
-                  />
-                </div>
-                <div>
-                  <label className="block text-sm font-medium text-slate-700">IČ DPH</label>
-                  <input
-                    type="text"
-                    value={editUser.vatId || ''}
-                    onChange={(e) => setEditUser({ ...editUser, vatId: e.target.value })}
-                    className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none"
-                  />
-                </div>
-              </div>
+              )}
 
-              <div>
-                <label className="block text-sm font-medium text-slate-700">Rola</label>
-                <select
-                  value={editUser.role || 'user'}
-                  onChange={(e) => setEditUser({ ...editUser, role: e.target.value })}
-                  className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-2 text-sm focus:border-slate-900 focus:outline-none"
-                >
-                  <option value="user">Zákazník</option>
-                  <option value="admin">Administrátor</option>
-                </select>
-              </div>
+              {/* Pre adminov pri vytváraní - info o invitation emaile */}
+              {filterRole === 'admin' && isCreating ? (
+                <div className="rounded-xl bg-blue-50 p-4">
+                  <p className="text-sm text-blue-700">
+                    Po vytvorení bude administrátorovi odoslaný email s odkazom na nastavenie hesla.
+                    Odkaz bude platný 24 hodín.
+                  </p>
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-sm font-medium text-slate-700">
+                    {isCreating ? 'Heslo *' : 'Nové heslo (nechať prázdne = bez zmeny)'}
+                  </label>
+                  <input
+                    type="password"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-2 text-sm focus:border-slate-900 focus:outline-none"
+                    placeholder={isCreating ? 'Zadajte heslo' : 'Nové heslo'}
+                  />
+                </div>
+              )}
+
+              {filterRole !== 'admin' && (
+                <>
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700">IČO</label>
+                      <input
+                        type="text"
+                        value={editUser.ico || ''}
+                        onChange={(e) => setEditUser({ ...editUser, ico: e.target.value })}
+                        className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700">DIČ</label>
+                      <input
+                        type="text"
+                        value={editUser.dic || ''}
+                        onChange={(e) => setEditUser({ ...editUser, dic: e.target.value })}
+                        className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-slate-700">IČ DPH</label>
+                      <input
+                        type="text"
+                        value={editUser.vatId || ''}
+                        onChange={(e) => setEditUser({ ...editUser, vatId: e.target.value })}
+                        className="mt-1 w-full rounded-xl border border-slate-200 px-3 py-2 text-sm focus:border-slate-900 focus:outline-none"
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700">Povolené platby</label>
+                    <div className="mt-2 grid grid-cols-2 gap-2">
+                      {paymentOptions.map((opt) => {
+                        const current = editUser.paymentMethods || [];
+                        const checked = current.includes(opt.id);
+                        return (
+                          <label
+                            key={opt.id}
+                            className={`flex items-center gap-2 rounded-xl border px-3 py-2 text-sm ${
+                              checked ? 'border-slate-900 bg-slate-900/5' : 'border-slate-200'
+                            }`}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={(e) => {
+                                const next = e.target.checked
+                                  ? [...current, opt.id]
+                                  : current.filter((id) => id !== opt.id);
+                                setEditUser({ ...editUser, paymentMethods: next });
+                              }}
+                              className="h-4 w-4 rounded border-slate-300"
+                            />
+                            <span>{opt.label}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                    <p className="mt-1 text-xs text-slate-500">
+                      Vyberte, ktoré spôsoby platby sú povolené pre tohto zákazníka. Ak začiarknete viac, zákazník si vyberie pri objednávke.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-slate-700">Rola</label>
+                    <select
+                      value={editUser.role || 'user'}
+                      onChange={(e) => setEditUser({ ...editUser, role: e.target.value })}
+                      className="mt-1 w-full rounded-xl border border-slate-200 px-4 py-2 text-sm focus:border-slate-900 focus:outline-none"
+                    >
+                      <option value="user">Zákazník</option>
+                      <option value="admin">Administrátor</option>
+                    </select>
+                  </div>
+                </>
+              )}
             </div>
 
             <div className="mt-6 flex gap-2">

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { mapDbProduct } from '@/lib/products.server';
 import type { ProductTranslation } from '@/types/product';
+import { isAdminAuthenticated, unauthorizedResponse } from '@/lib/auth/middleware';
 
 const stringOrNull = (value?: string | null) => (value && value.trim().length ? value : null);
 const serialiseList = (value?: string[]) => JSON.stringify(value ?? []);
@@ -32,7 +33,16 @@ export async function GET(_: Request, { params }: { params: Promise<{ id: string
   }
 }
 
+/**
+ * PUT /api/products/[id]
+ * Aktualizácia produktu - vyžaduje admin autentifikáciu
+ */
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
+  const admin = await isAdminAuthenticated();
+  if (!admin) {
+    return unauthorizedResponse('Prístup len pre administrátorov');
+  }
+
   const { id } = await params;
   const payload = await request.json();
   try {
@@ -44,6 +54,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
         tagline: stringOrNull(payload.tagline),
         description: stringOrNull(payload.description),
         price: payload.price,
+        vatRate: payload.vatRate ?? 20,
         currency: payload.currency || 'EUR',
         badge: stringOrNull(payload.badge),
         billingPeriod: stringOrNull(payload.billingPeriod),
@@ -72,7 +83,16 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
   }
 }
 
+/**
+ * DELETE /api/products/[id]
+ * Odstránenie produktu - vyžaduje admin autentifikáciu
+ */
 export async function DELETE(_: Request, { params }: { params: Promise<{ id: string }> }) {
+  const admin = await isAdminAuthenticated();
+  if (!admin) {
+    return unauthorizedResponse('Prístup len pre administrátorov');
+  }
+
   try {
     const { id } = await params;
     await prisma.product.delete({

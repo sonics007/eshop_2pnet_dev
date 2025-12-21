@@ -11,6 +11,7 @@ export interface User {
   ico?: string | null;
   dic?: string | null;
   vatId?: string | null;
+  paymentMethods?: string[] | null;
   role: 'user' | 'admin';
   twoFactorEnabled: boolean;
   createdAt: Date;
@@ -20,6 +21,7 @@ export interface UserListItem {
   id: number;
   email: string;
   companyName: string;
+  paymentMethods?: string[] | null;
   role: string;
   twoFactorEnabled: boolean;
   createdAt: string;
@@ -27,13 +29,26 @@ export interface UserListItem {
 
 export interface CreateUserInput {
   email: string;
-  password: string;
+  password?: string;  // Voliteľné pre adminov (dostanú invitation email)
   companyName: string;
   ico?: string;
   dic?: string;
   vatId?: string;
+  paymentMethods?: string[];
   role?: 'user' | 'admin';
   twoFactorEnabled?: boolean;
+  sendInvitation?: boolean;  // Ak true, pošle invitation email namiesto vyžadovania hesla
+}
+
+export interface AdminInviteResult {
+  user: UserListItem;
+  invitationSent: boolean;
+  invitationError?: string;
+}
+
+export interface SetPasswordInput {
+  token: string;
+  password: string;
 }
 
 export interface UpdateUserInput {
@@ -43,6 +58,7 @@ export interface UpdateUserInput {
   ico?: string | null;
   dic?: string | null;
   vatId?: string | null;
+  paymentMethods?: string[] | null;
   role?: 'user' | 'admin';
   twoFactorEnabled?: boolean;
 }

@@ -4,10 +4,11 @@ import {
   writeMenuSettings,
   type MenuSettings
 } from '@/lib/modules/site/pages/menu';
+import { isAdminAuthenticated, unauthorizedResponse } from '@/lib/auth/middleware';
 
 /**
  * GET /api/site/menu
- * Načíta nastavenia menu
+ * Načíta nastavenia menu (verejné)
  */
 export async function GET() {
   try {
@@ -24,9 +25,14 @@ export async function GET() {
 
 /**
  * POST /api/site/menu
- * Zapíše nastavenia menu
+ * Zapíše nastavenia menu - vyžaduje admin autentifikáciu
  */
 export async function POST(request: Request) {
+  const admin = await isAdminAuthenticated();
+  if (!admin) {
+    return unauthorizedResponse('Prístup len pre administrátorov');
+  }
+
   try {
     const payload = await request.json() as Partial<MenuSettings>;
     const updated = await writeMenuSettings(payload);

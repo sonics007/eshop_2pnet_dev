@@ -2,9 +2,7 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { authenticator } from 'otplib';
 import type { AdminUser, AuthResult } from '@/lib/modules/auth/types';
-
-// OTP secret - v produkcii by malo byť per-user a v DB
-const OTP_SECRET = 'SUPERSECRET2P';
+import { createAccessToken, createRefreshToken, setAuthCookies } from '@/lib/auth/jwt';
 
 /**
  * POST /api/auth/admin/verify-2fa
@@ -33,8 +31,18 @@ export async function POST(request: Request) {
       }, { status: 401 });
     }
 
-    // Overiť OTP kód
-    const isValidOtp = authenticator.check(code, OTP_SECRET);
+    const otpSecret = user.twoFactorSecret || process.env.ADMIN_OTP_SECRET;
+
+    // Skontrolovať, či má používateľ 2FA povolené a dostupný secret
+    if (!user.twoFactorEnabled || !otpSecret) {
+      return NextResponse.json<AuthResult>({
+        success: false,
+        error: '2FA nie je pre tento účet nastavené'
+      }, { status: 400 });
+    }
+
+    // Overiť OTP kód proti používateľskému secretu
+    const isValidOtp = authenticator.check(code, otpSecret);
     if (!isValidOtp) {
       return NextResponse.json<AuthResult>({
         success: false,
@@ -50,6 +58,21 @@ export async function POST(request: Request) {
       twoFactorEnabled: user.twoFactorEnabled,
       permissions: []
     };
+
+    // Vytvor JWT tokeny po úspešnom 2FA overení
+    const accessToken = await createAccessToken({
+      userId: user.id,
+      email: user.email,
+      role: 'admin'
+    });
+    const refreshToken = await createRefreshToken({
+      userId: user.id,
+      email: user.email,
+      role: 'admin'
+    });
+
+    // Nastav HTTP-only cookies
+    await setAuthCookies(accessToken, refreshToken);
 
     return NextResponse.json<AuthResult>({
       success: true,

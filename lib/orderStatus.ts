@@ -1,35 +1,15 @@
-import type { AdminOrder } from '@/types/orders';
+import { dbToStatus, statusToDb, type OrderStatus } from '@/types/orders';
 
-export function mapStatus(status: string): AdminOrder['status'] {
-  switch (status) {
-    case 'PRIJATA':
-      return 'Prijatá';
-    case 'SPRACOVANIE':
-      return 'Spracovanie';
-    case 'EXPEDOVANA':
-      return 'Expedovaná';
-    case 'DOKONCENA':
-      return 'Dokončená';
-    case 'STORNOVANA':
-      return 'Stornovaná';
-    default:
-      return 'Prijatá';
-  }
+/**
+ * Mapuje DB status (PRIJATA, SPRACOVANIE...) na interný kód (new, processing...)
+ */
+export function mapStatus(dbStatus: string): OrderStatus {
+  return dbToStatus[dbStatus] ?? 'new';
 }
 
-export function reverseStatus(status: AdminOrder['status']) {
-  switch (status) {
-    case 'Prijatá':
-      return 'PRIJATA';
-    case 'Spracovanie':
-      return 'SPRACOVANIE';
-    case 'Expedovaná':
-      return 'EXPEDOVANA';
-    case 'Dokončená':
-      return 'DOKONCENA';
-    case 'Stornovaná':
-      return 'STORNOVANA';
-    default:
-      return 'PRIJATA';
-  }
+/**
+ * Mapuje interný kód (new, processing...) na DB status (PRIJATA, SPRACOVANIE...)
+ */
+export function reverseStatus(status: OrderStatus): string {
+  return statusToDb[status] ?? 'PRIJATA';
 }

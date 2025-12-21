@@ -4,7 +4,7 @@
  * Zdieľané typy pre zákaznícku aj admin autentifikáciu
  */
 
-export type UserRole = 'customer' | 'admin';
+export type UserRole = 'user' | 'customer' | 'admin';
 
 export interface BaseUser {
   id: number;
@@ -14,18 +14,16 @@ export interface BaseUser {
 }
 
 export interface CustomerUser extends BaseUser {
-  role: 'customer';
+  role: 'user' | 'customer';
   companyName: string;
   ico?: string;
   dic?: string;
   vatId?: string;
   phone?: string;
-  address?: {
-    street: string;
-    city: string;
-    zip: string;
-    country: string;
-  };
+  street?: string;
+  city?: string;
+  zip?: string;
+  country?: string;
 }
 
 export interface AdminUser extends BaseUser {
@@ -54,6 +52,10 @@ export interface RegisterData {
   dic: string;
   vatId?: string;
   phone?: string;
+  street?: string;
+  city?: string;
+  zip?: string;
+  country?: string;
 }
 
 export interface AuthResult {

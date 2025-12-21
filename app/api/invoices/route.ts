@@ -1,11 +1,21 @@
-﻿import { NextResponse } from 'next/server';
+import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { sampleInvoices, sampleOrders } from '@/lib/sampleData';
 import { generateInvoiceFromOrder, persistInvoice } from '@/lib/invoice';
 import { mapStatus } from '@/lib/orderStatus';
 import type { AdminOrder, InvoiceRecord } from '@/types/orders';
+import { isAdminAuthenticated, unauthorizedResponse } from '@/lib/auth/middleware';
 
+/**
+ * GET /api/invoices
+ * Zoznam faktúr - vyžaduje admin autentifikáciu
+ */
 export async function GET() {
+  const admin = await isAdminAuthenticated();
+  if (!admin) {
+    return unauthorizedResponse('Prístup len pre administrátorov');
+  }
+
   try {
     const invoices = await prisma.invoice.findMany({
       orderBy: { issueDate: 'desc' },
@@ -32,7 +42,16 @@ export async function GET() {
   }
 }
 
+/**
+ * POST /api/invoices
+ * Generovanie faktúry - vyžaduje admin autentifikáciu
+ */
 export async function POST(request: Request) {
+  const admin = await isAdminAuthenticated();
+  if (!admin) {
+    return unauthorizedResponse('Prístup len pre administrátorov');
+  }
+
   try {
     const body = await request.json();
     const orderId: string | undefined = body.orderId;

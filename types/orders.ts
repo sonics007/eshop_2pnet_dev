@@ -1,4 +1,35 @@
-export type OrderStatus = 'Prijatá' | 'Spracovanie' | 'Expedovaná' | 'Dokončená' | 'Stornovaná';
+// Interné anglické kódy pre status - používané v API a logike
+export type OrderStatus = 'new' | 'confirmed' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+
+// Slovenské preklady pre zobrazenie v UI
+export const orderStatusLabels: Record<OrderStatus, string> = {
+  new: 'Prijatá',
+  confirmed: 'Potvrdená',
+  processing: 'Spracovanie',
+  shipped: 'Expedovaná',
+  delivered: 'Dokončená',
+  cancelled: 'Stornovaná'
+};
+
+// Mapovanie z DB kódov na interné kódy
+export const dbToStatus: Record<string, OrderStatus> = {
+  'PRIJATA': 'new',
+  'POTVRDENA': 'confirmed',
+  'SPRACOVANIE': 'processing',
+  'EXPEDOVANA': 'shipped',
+  'DOKONCENA': 'delivered',
+  'STORNOVANA': 'cancelled'
+};
+
+// Mapovanie z interných kódov na DB kódy
+export const statusToDb: Record<OrderStatus, string> = {
+  new: 'PRIJATA',
+  confirmed: 'POTVRDENA',
+  processing: 'SPRACOVANIE',
+  shipped: 'EXPEDOVANA',
+  delivered: 'DOKONCENA',
+  cancelled: 'STORNOVANA'
+};
 
 export type OrderItem = {
   name: string;

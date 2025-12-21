@@ -1,21 +1,33 @@
 ﻿const nextConfig = {
   // Turbopack konfigurácia pre Next.js 16+
-  turbopack: {},
+  turbopack: {
+    // Polling pre vzdialený vývoj (macOS -> Linux)
+    watch: {
+      poll: 1000,
+      aggregateTimeout: 300,
+    },
+  },
 
   experimental: {
-    // Optimalizácia pre Windows - menší cache
     webpackBuildWorker: false,
   },
 
   webpack: (config, { dev, isServer }) => {
-    // Optimalizácia cache pre Windows
+    // Polling pre webpack (vzdialený vývoj)
+    if (dev) {
+      config.watchOptions = {
+        poll: 1000,
+        aggregateTimeout: 300,
+        ignored: /node_modules/,
+      };
+    }
+
     config.cache = dev ? false : {
       type: 'filesystem',
       maxMemoryGenerations: 1,
       compression: false,
     };
 
-    // Optimalizácia pre vývoj
     if (dev) {
       config.optimization = {
         ...config.optimization,
